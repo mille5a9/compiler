@@ -8,6 +8,7 @@ Notes:
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
+#include "symboltable.h"
 
 // time-efficient check for file existence
 inline bool fileExists(char *filename) {
@@ -15,23 +16,10 @@ inline bool fileExists(char *filename) {
     return (stat (filename, &buffer) == 0);
 }
 
-enum TOKEN_TYPES {
-    Operators,
-    Keywords,
-    Identifiers,
-    NumLiteral,
-    CharLiteral,
-    StrLiteral
-};
-
-struct record {
-    char *tokenString;
-    TOKEN_TYPES tokenType; 
-};
-
 // Scanner object
 static class Scanner {
     int lineCounter, errCounter, warnCounter;
+    std::unordered_map<char*, record> symbolTable;
     public:
         void reportError(char *message) {
             std::cout << "ERROR: " << message << std::endl;
@@ -47,7 +35,7 @@ static class Scanner {
             this->warnCounter = 0;
             std::cout << "Counters initialized.\n";
 
-            // populate symbol table (from external file? JSON?)
+            // populate symbol table with reserved words (from external file? JSON?)
 
             return true;
         }
@@ -67,6 +55,6 @@ int main(int argc, char **argv) {
 
     std::cout << "File detected.\n";
 
-    bool initsuccess = scan.init(filename);
+    scan.init(filename);
     return 0;
 }

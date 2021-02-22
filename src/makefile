@@ -13,7 +13,7 @@ scanner: scanner.o
 	$(CC) $(CFLAGS) -o $(BUILDDIR)/scanner $(BUILDDIR)/scanner.o
 
 # ****************************************************
-scanner.o: scanner.cpp
+scanner.o: scanner.cpp symboltable.h symboltable.cpp
 	$(CC) $(CFLAGS) -c scanner.cpp -o $(BUILDDIR)/scanner.o
 
 # Point.o: Point.h
