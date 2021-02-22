@@ -3,30 +3,70 @@
 /*
 Notes:
 - Should map every non-string to upper-case (tmp and TMP should be the same)
-
 */
 
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
 
-inline bool fileExists(char* filename) {
+// time-efficient check for file existence
+inline bool fileExists(char *filename) {
     struct stat buffer;
     return (stat (filename, &buffer) == 0);
 }
 
-int main(int argc, char** argv) {
+enum TOKEN_TYPES {
+    Operators,
+    Keywords,
+    Identifiers,
+    NumLiteral,
+    CharLiteral,
+    StrLiteral
+};
+
+struct record {
+    char *tokenString;
+    TOKEN_TYPES tokenType; 
+};
+
+// Scanner object
+static class Scanner {
+    int lineCounter, errCounter, warnCounter;
+    public:
+        void reportError(char *message) {
+            std::cout << "ERROR: " << message << std::endl;
+        }
+
+        void reportWarning(char *message) {
+            std::cout << "WARNING: " << message << std::endl;
+        }
+
+        bool init(char *filename) {
+            this->lineCounter = 0;
+            this->errCounter = 0;
+            this->warnCounter = 0;
+            std::cout << "Counters initialized.\n";
+
+            // populate symbol table (from external file? JSON?)
+
+            return true;
+        }
+} scan;
+
+int main(int argc, char **argv) {
     if (argc < 2) {
         std::cout << "Scanner requires filename argument\n";
         return 0;
     }
 
-    char* filename = argv[1];
+    char *filename = argv[1];
     if (!fileExists(filename)) {
-        std::cout << "No src file detected with name: " << filename << std::endl;
+        std::cout << "No source file detected with name: \"" << filename << "\"\n";
         return 0;
     }
 
     std::cout << "File detected.\n";
+
+    bool initsuccess = scan.init(filename);
     return 0;
 }
