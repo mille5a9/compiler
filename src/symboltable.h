@@ -13,12 +13,16 @@ enum TOKEN_TYPES {
 };
 
 struct record {
+    record(char *name, TOKEN_TYPES type) {
+        this->tokenString = name;
+        this->tokenType = type;
+    }
     char *tokenString;
     TOKEN_TYPES tokenType = Identifier;
 };
 
 class SymbolTable {
-    std::unordered_map<char*, record> table;
+    std::unordered_map<int, record> table;
     public:
 
         // remove all entries and free storage
