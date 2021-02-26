@@ -48,10 +48,13 @@
 #define T_STRING 343
 #define T_BOOL 344
 
+#define T_EOF 345 // special indicator of end-of-file
+
 #include <unordered_map>
 #include <iostream>
 
 struct Record {
+    Record() = default;
     Record(const char *name, int type = 340) {
         this->tokenString = name;
         this->tokenType = type;
