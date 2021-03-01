@@ -41,26 +41,23 @@
 #define T_LESSEQUIV 275
 #define T_NOTEQUIV 276
 #define T_NOT 277
-
-#define T_IDENTIFIER 340 // identifiers, constants
-#define T_INTEGER 341
-#define T_FLOAT 342
-#define T_STRING 343
-#define T_BOOL 344
-
-#define T_EOF 345 // special indicator of end-of-file
+#define T_IDENTIFIER 278 // identifiers, constants
+#define T_INTEGER 279
+#define T_FLOAT 280
+#define T_STRING 281
+#define T_EOF 282 // special indicator of end-of-file
 
 #include <unordered_map>
 #include <iostream>
 
 struct Record {
     Record() = default;
-    Record(const char *name, int type = 340) {
+    Record(const char *name, int type) {
         this->tokenString = name;
         this->tokenType = type;
     }
     const char *tokenString;
-    int tokenType = 340;
+    int tokenType;
 };
 
 class SymbolTable {

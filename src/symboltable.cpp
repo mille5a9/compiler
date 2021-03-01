@@ -3,9 +3,10 @@
 #include <algorithm>
 
 // search for a token name and a pointer to its entry
-Record* SymbolTable::lookup(const char* tokenString) {
+Record* SymbolTable::lookup(const char tokenString[]) {
     std::unordered_map<const char*, int>::const_iterator subject =
         this->table.find(tokenString);
+    if (subject == this->table.end()) return NULL;
     Record *found = new Record(subject->first, subject->second);
     return found;
 }
