@@ -1,24 +1,35 @@
 #include "word.h"
 #include <ctype.h>
+#include <string>
+#include <algorithm>
 
 Word::Word(std::string name, int lineNum, int colNum, int type) {
-        this->tokenString = name;
-        this->tokenType = type;
-        this->line = lineNum;
-        this->col = colNum;
+    this->tokenString = name;
+    this->tokenType = type;
+    this->line = lineNum;
+    this->col = colNum;
 }
 
-// determines whether or not the character is a letter, while capitalizing it
-bool Word::isLetter(int &in) {
-    if (isalpha(in)) {
-        in = toupper(in);
-        return true;
+DigitWord::DigitWord(std::string name, int lineNum, int colNum,  int type)  :
+    Word(name, lineNum, colNum, type) {
+
+    // store value as int, get rid of underscores first
+    if (type == T_INTEGER) {
+        name.erase(std::remove(name.begin(), name.end(), '_'), name.end());
+        this->intValue = std::stoi(name);
     }
-    else return false;
+
+    // store value as float, get rid of underscores first
+    else if (type == T_FLOAT) {
+        name.erase(std::remove(name.begin(), name.end(), '_'), name.end());
+        this->floatValue = std::stof(name);
+    }
 }
 
-// determines whether or not the char is a digit
-bool Word::isDigit(int &in) {
-    if (isdigit(in)) return true;
-    else return false;
+StringWord::StringWord(std::string name, int lineNum, int colNum,  int type)  :
+    Word(name, lineNum, colNum, type) {
+
+    // trim the quotes off the string and store the raw string data
+    name = name.substr(1, name.size() - 2);
+    this->strValue = name;
 }

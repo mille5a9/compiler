@@ -15,4 +15,15 @@ struct Word {
     static bool isDigit(int &in);
 };
 
+struct DigitWord : Word {
+    int intValue = 0;
+    float floatValue = 0.0;
+    DigitWord(std::string name, int lineNum, int colNum,  int type);
+};
+
+struct StringWord : Word {
+    std::string strValue = "";
+    StringWord(std::string name, int lineNum, int colNum,  int type);
+};
+
 #endif
