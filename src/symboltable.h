@@ -49,19 +49,49 @@
 
 #include <unordered_map>
 #include <iostream>
+#include <string.h>
 
 struct Record {
     Record() = default;
-    Record(const char *name, int type) {
+    Record(std::string name, int type) {
         this->tokenString = name;
         this->tokenType = type;
     }
-    const char *tokenString;
+    std::string tokenString;
     int tokenType;
 };
 
+// custom hash function for the unordered map, else it will screw up the char arrays
+// this solution is from https://stackoverflow.com/questions/20649864/c-unordered-map-with-char-as-key
+template <class Tp>  
+struct my_equal_to  
+{  
+    bool operator()(const Tp& x, const Tp& y) const  
+    { return strcmp( x, y ) == 0; }  
+};
+
+
+struct Hash_Func{
+    //BKDR hash algorithm
+    int operator()(char * str)const
+    {
+        int seed = 131;//31  131 1313 13131131313 etc//
+        int hash = 0;
+        while(*str)
+        {
+            hash = (hash * seed) + (*str);
+            str ++;
+        }
+
+        return hash & (0x7FFFFFFF);
+    }
+};
+
+typedef std::unordered_map<std::string, unsigned int/*, Hash_Func,  my_equal_to<char*> */> my_unordered_map;
+
+
 class SymbolTable {
-    std::unordered_map<const char*, int> table;
+    my_unordered_map table;
     public:
 
         // insert reserved words into symbol table
@@ -74,7 +104,7 @@ class SymbolTable {
         void print();
 
         // search for a token name and a pointer to its entry
-        Record *lookup(const char* tokenString);
+        Record *lookup(std::string tokenString);
 
         // insert name into symbol table
         void insert(Record tokenRecord);

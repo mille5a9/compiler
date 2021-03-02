@@ -1,7 +1,7 @@
 #include "word.h"
 #include <ctype.h>
 
-Word::Word(const char *name, int lineNum, int colNum, int type) {
+Word::Word(std::string name, int lineNum, int colNum, int type) {
         this->tokenString = name;
         this->tokenType = type;
         this->line = lineNum;

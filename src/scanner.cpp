@@ -1,10 +1,5 @@
 //  recursive descent compiler by Andrew Miller
 
-/*
-Notes:
-- Should map every non-string to upper-case (tmp and TMP should be the same)
-*/
-
 #include <fstream>
 #include <list>
 #include <sys/stat.h>
@@ -24,19 +19,19 @@ static class Scanner {
         errCounter = 0, warnCounter = 0, streamIndex = 0;
     bool commentFlag = false, multilineCommentFlag = false;
     SymbolTable symbolTable;
-    const char *codeStream;
+    std::string codeStream;
     int codeLength;
     std::list<Word> wordList;
     public:
-        void reportError(const char *message) {
+        void reportError(std::string message) {
             std::cout << "ERROR: " << message << std::endl;
         }
 
-        void reportWarning(const char *message) {
+        void reportWarning(std::string message) {
             std::cout << "WARNING: " << message << std::endl;
         }
 
-        bool init(char *filename, const char *contents) {
+        bool init(char *filename, std::string contents) {
             this->lineCounter = 1;
             this->errCounter = 0;
             this->warnCounter = 0;
@@ -51,7 +46,7 @@ static class Scanner {
 
             // assign code text to codestream array
             this->codeStream = contents;
-            this->codeLength = strlen(contents);
+            this->codeLength = contents.length();
             std::cout << "codeStream contents:\n" << this->codeStream << std::endl;
             std::cout << "symbolTable contents:\n";
             symbolTable.print();
@@ -74,44 +69,98 @@ static class Scanner {
             }
             // lookahead and skip if multiline comment is ending
             else if (multilineCommentFlag) {
-                if (current == '*' && this->codeStream[this->streamIndex] == '/') {
-                    this->streamIndex++;
+                if (current == '*' && this->peekScanner('/')) {
                     multilineCommentFlag = false;
                 }
                 return current;
             }
 
-            char singleCharWord;
+            std::string singleCharWord;
 
             // handle single char tokens (punctuation and operators)
             switch (current) {
                 case T_SEMICOLON : case T_LPAREN : case T_RPAREN : case T_MULT : 
-                case T_COMMA : case T_COLON : case T_LBRACKET : 
-                case T_RBRACKET : case T_LBRACE : case T_RBRACE : case T_AND : 
-                case T_OR : case T_ADD : case T_SUB : case T_LESS : case T_MORE : 
+                case T_COMMA : case T_LBRACKET : case T_RBRACKET : case T_LBRACE : 
+                case T_RBRACE : case T_AND : case T_OR : case T_ADD : case T_SUB : 
                 case T_PERIOD :
                     std::cout << "handle single char token (Line 91)\n";
                     singleCharWord = current;
                     this->wordList.push_back(Word(
-                        &singleCharWord, lineCounter, colCounter, (int)current));
+                        singleCharWord, lineCounter, colCounter, (int)current));
                     return current;
-                    break;
                 case T_DIVIDE :
                     // the slash could be division or the start of a comment
-                    if (this->streamIndex < this->codeLength) {
-                        if (this->codeStream[this->streamIndex] == '/') {
-                            this->commentFlag = true;
-                        }
-                        else if (this->codeStream[this->streamIndex] == '*') {
-                            this->multilineCommentFlag = true;
-                        }
-                        current = this->advanceScanner();
-                        return current;
+                    if (this->peekScanner('/')) {
+                        this->commentFlag = true;
                     }
-                    singleCharWord = current;
-                    this->wordList.push_back(Word(
-                        &singleCharWord, lineCounter, colCounter, (int)current));
+                    else if (this->peekScanner('*')) {
+                        this->multilineCommentFlag = true;
+                    }
+                    else {
+                        singleCharWord = current;
+                        this->wordList.push_back(Word(
+                            singleCharWord, lineCounter, colCounter, (int)current));
+                    }
                     return current;
+                case T_COLON :
+                    // the colon could be an assignment
+                    if (this->peekScanner('=')) {
+                        this->wordList.push_back(Word(
+                            ":=", lineCounter, colCounter, T_ASSIGN));
+                    }
+                    else {
+                        singleCharWord = current;
+                        this->wordList.push_back(Word(
+                            singleCharWord, lineCounter, colCounter, (int)current));
+                    }
+                    return current;
+                case T_MORE :
+                    // the > could be >=
+                    if (this->peekScanner('=')) {
+                        this->wordList.push_back(Word(
+                            ">=", lineCounter, colCounter, T_MOREEQUIV));
+                    }
+                    else {
+                        singleCharWord = current;
+                        this->wordList.push_back(Word(
+                            singleCharWord, lineCounter, colCounter, (int)current));
+                    }
+                    return current;
+                case T_LESS :
+                    // the < could be <=
+                    if (this->peekScanner('=')) {
+                        this->wordList.push_back(Word(
+                            "<=", lineCounter, colCounter, T_LESSEQUIV));
+                    }
+                    else {
+                        singleCharWord = current;
+                        this->wordList.push_back(Word(
+                            singleCharWord, lineCounter, colCounter, (int)current));
+                    }
+                    return current;
+            }
+
+            // handle double char punctuation tokens that don't start
+            // with a char from the single char tokens section, so != and ==
+            if (current == '!') {
+                if (this->peekScanner('=')) {
+                    this->wordList.push_back(Word(
+                        ":=", lineCounter, colCounter, T_NOTEQUIV));
+                    return current;
+                }
+                else {
+                    reportError("\"!\" is not valid, did you mean \"!=\"?");
+                }
+            }
+            else if (current == '=') {
+                if (this->peekScanner('=')) {
+                    this->wordList.push_back(Word(
+                        ":=", lineCounter, colCounter, T_EQUIV));
+                    return current;
+                }
+                else {
+                    reportError("\"=\" is not valid, did you mean \"==\" or \":=\"?");
+                }
             }
 
             // handle letter by scanning for entire word
@@ -122,32 +171,33 @@ static class Scanner {
                 std::cout << "handle letter (Line 102)\n";
                 std::list<char> letters;
                 letters.push_back(current);
-                current = this->advanceScanner();
-
 
                 // store entire word in list of letters
-                while (isalpha(current) || isdigit(current) || current == '_') {
-                    current = toupper(current);
+                int next = peekScannerAlpha();
+                while (next != 0) {
+                    current = toupper(next);
                     letters.push_back(current);
-                    current = this->advanceScanner();
+                    next = this->peekScannerAlpha();
                 }
 
                 int wordSize = letters.size();
-                char entireWord[wordSize];
+                std::string entireWord = "";
                 std::cout << "declared entireword (Line 120)\n";
 
                 // reformat letters
                 for (int i = 0; i < wordSize; i++) {
-                    entireWord[i] = letters.front();
-                    std::cout << entireWord[i];
+                    entireWord += letters.front();
                     letters.pop_front();
                 }
+                std::cout << entireWord;
                 std::cout << "\nreformatted entireword (Line 127)\n";
 
                 // check for reserved words / used identifiers
                 Record *reserved = this->symbolTable.lookup(entireWord);
                 std::cout << "looked up entireword (Line 131)\n";
+
                 if (reserved == NULL) { // must be new identifier
+
                     this->symbolTable.insert(Record(entireWord, T_IDENTIFIER));
                     std::cout << "inserted new record (Line 134)\n";
 
@@ -156,11 +206,14 @@ static class Scanner {
                     Word identifier = Word(entireWord, lineCounter, colCounter, T_IDENTIFIER);
                     this->wordList.push_back(identifier);
                     std::cout << "pushed new word (Line 140)\n";
+
                 }
                 else {
+
                     std::cout << "about to construct word (Line 143)\n";
                     // make word for known token
                     std::cout << "writing tokenString: " << reserved->tokenString << "\n";
+
                     Word knownToken = Word(
                         reserved->tokenString, lineCounter, colCounter, reserved->tokenType);
                     std::cout << "word made, about to push (Line 147)\n";
@@ -188,11 +241,11 @@ static class Scanner {
                 }
 
                 int wordSize = digits.size();
-                char entireWord[wordSize];
+                std::string entireWord = "";
 
                 // reformat letters
                 for (int i = 0; i < wordSize; i++) {
-                    entireWord[i] = digits.front();
+                    entireWord += digits.front();
                     digits.pop_front();
                 }
 
@@ -223,11 +276,11 @@ static class Scanner {
                 }
                 
                 int wordSize = stringContents.size();
-                char entireWord[wordSize];
+                std::string entireWord = "";
 
                 // format string
                 for (int i = 0; i < wordSize; i++) {
-                    entireWord[i] = stringContents.front();
+                    entireWord += stringContents.front();
                     stringContents.pop_front();
                 }
                 
@@ -257,6 +310,26 @@ static class Scanner {
             return current;
         }
 
+        // peeks ahead to check for a given char and if found, advances the scanner
+        bool peekScanner(char check) {
+            if (this->codeStream[this->streamIndex] == check) {
+                this->advanceScanner();
+                return true;
+            }
+            return false;
+        }
+
+        // peeks ahead to check for a letter/digit/underscore, advances the scanner
+        // if found, otherwise returns zero for boolean false
+        int peekScannerAlpha() {
+            int next = this->codeStream[this->streamIndex];
+            if (isalpha(next) || isdigit(next) || next == '_') {
+                this->advanceScanner();
+                return next;
+            }
+            return 0;
+        }
+
         // write word list out to txt file, so I can look at it and cry
         void writeWordList() {
             std::ofstream wordsOut;
@@ -264,7 +337,7 @@ static class Scanner {
             wordsOut.open("../build/wordlist.txt", std::ofstream::out | std::ofstream::trunc);
             while (copyWordList.empty() == false) {
                 Word frontWord = copyWordList.front();
-                wordsOut << "<" << frontWord.tokenType << "," << frontWord.tokenString << ">\n";
+                wordsOut << frontWord.tokenType << "," << frontWord.tokenString << "\n";
                 //std::cout << "<" << frontWord.tokenType << "," << frontWord.tokenString << ">\n";
                 copyWordList.pop_front();
             }
@@ -292,7 +365,7 @@ int main(int argc, char **argv) {
     std::ifstream inputFile(filename);
     std::string contents((std::istreambuf_iterator<char>(inputFile)), 
         std::istreambuf_iterator<char>());
-    scan.init(filename, contents.c_str());
+    scan.init(filename, contents);
 
     // scan for tokens and add them to the scanner's list
     int nextWord = 0;
@@ -300,8 +373,6 @@ int main(int argc, char **argv) {
         nextWord = scan.getNextToken();
     }
     scan.writeWordList();
-    std::cout << "Check end of code for fix\n";
-    // https://stackoverflow.com/questions/20649864/c-unordered-map-with-char-as-key
 
     return 0;
 }

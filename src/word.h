@@ -4,8 +4,8 @@
 #include "symboltable.h"
 
 struct Word {
-    Word(const char *name, int lineNum, int colNum,  int type);
-    const char *tokenString;
+    Word(std::string name, int lineNum, int colNum,  int type);
+    std::string tokenString;
     int tokenType, line, col;
     // char stringValue[256];
     // int intValue = 0; // also used for bool
