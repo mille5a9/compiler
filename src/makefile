@@ -13,7 +13,7 @@ scanner: scanner.o symboltable.o word.o
 	$(CC) $(CFLAGS) -o $(BUILDDIR)/scanner $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
 
 # ****************************************************
-scanner.o: scanner.cpp symboltable.h word.h
+scanner.o: scanner.cpp symboltable.h word.h scanner.h
 	$(CC) $(CFLAGS) -c scanner.cpp -o $(BUILDDIR)/scanner.o
 
 # ****************************************************
