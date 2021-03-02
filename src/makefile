@@ -9,8 +9,16 @@ CFLAGS = -Wall -g
 BUILDDIR = ../build
 
 # **************************************************** 
-scanner: scanner.o symboltable.o word.o
-	$(CC) $(CFLAGS) -o $(BUILDDIR)/scanner $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
+parser: parser.o scanner.o symboltable.o word.o
+	$(CC) $(CFLAGS) -o $(BUILDDIR)/parser $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
+
+# **************************************************** 
+parser.o: parser.cpp parser.h symboltable.h word.h scanner.h
+	$(CC) $(CFLAGS) -c parser.cpp -o $(BUILDDIR)/parser.o
+
+# **************************************************** 
+# scanner: scanner.o symboltable.o word.o
+# 	$(CC) $(CFLAGS) -o $(BUILDDIR)/scanner $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
 
 # ****************************************************
 scanner.o: scanner.cpp symboltable.h word.h scanner.h
@@ -27,4 +35,4 @@ word.o: word.cpp word.h
 # Square.o: Square.h Point.h
 
 clean :
-	rm $(BUILDDIR)/scanner $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o $(BUILDDIR)/wordlist.txt
+	rm $(BUILDDIR)/parser $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o $(BUILDDIR)/wordlist.txt
