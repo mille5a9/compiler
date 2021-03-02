@@ -33,6 +33,7 @@ static class Scanner {
         bool init(char *filename, std::string contents);
         int getNextToken();
         void writeWordList();
+        std::list<Word> getWordList();
 } scan;
 
 #endif

@@ -62,7 +62,6 @@ int Scanner::getNextToken() {
         case T_COMMA : case T_LBRACKET : case T_RBRACKET : case T_LBRACE : 
         case T_RBRACE : case T_AND : case T_OR : case T_ADD : case T_SUB : 
         case T_PERIOD :
-            std::cout << "handle single char token (Line 91)\n";
             singleCharWord = current;
             this->wordList.push_back(Word(
                 singleCharWord, lineCounter, colCounter, (int)current));
@@ -147,7 +146,6 @@ int Scanner::getNextToken() {
     // and if it is a new identifier, throw it in the symbol table
     if (isalpha(current)) {
         current = toupper(current);
-        std::cout << "handle letter (Line 102)\n";
         std::list<char> letters;
         letters.push_back(current);
 
@@ -161,7 +159,6 @@ int Scanner::getNextToken() {
 
         int wordSize = letters.size();
         std::string entireWord = "";
-        std::cout << "declared entireword (Line 120)\n";
 
         // reformat letters
         for (int i = 0; i < wordSize; i++) {
@@ -169,35 +166,28 @@ int Scanner::getNextToken() {
             letters.pop_front();
         }
         std::cout << entireWord;
-        std::cout << "\nreformatted entireword (Line 127)\n";
 
         // check for reserved words / used identifiers
         Record *reserved = this->symbolTable.lookup(entireWord);
-        std::cout << "looked up entireword (Line 131)\n";
 
         if (reserved == NULL) { // must be new identifier
 
             this->symbolTable.insert(Record(entireWord, T_IDENTIFIER));
-            std::cout << "inserted new record (Line 134)\n";
 
             // also make the word for this identifier
             // NOTE:: no scope token yet :shrug:
             Word identifier = Word(entireWord, lineCounter, colCounter, T_IDENTIFIER);
             this->wordList.push_back(identifier);
-            std::cout << "pushed new word (Line 140)\n";
 
         }
         else {
 
-            std::cout << "about to construct word (Line 143)\n";
             // make word for known token
             std::cout << "writing tokenString: " << reserved->tokenString << "\n";
 
             Word knownToken = Word(
                 reserved->tokenString, lineCounter, colCounter, reserved->tokenType);
-            std::cout << "word made, about to push (Line 147)\n";
             this->wordList.push_back(knownToken);
-            std::cout << "word pushed (Line 149)\n";
             
         }
 
@@ -206,7 +196,6 @@ int Scanner::getNextToken() {
 
     // handle numeric literal
     if (isdigit(current)) {
-    std::cout << "handle numeric literal (Line 164)\n";
         int numericSubtype = T_INTEGER;
         std::list<char> digits;
         digits.push_back(current);
@@ -236,7 +225,6 @@ int Scanner::getNextToken() {
 
     // handle string literal
     if (current == '"') {
-    std::cout << "handle string literal (Line 194)\n";
         std::list<char> stringContents;
         current = this->advanceScanner();
 
@@ -334,35 +322,43 @@ void Scanner::writeWordList() {
     wordsOut.close();
 }
 
-int main(int argc, char **argv) {
-
-    // Check arg count
-    if (argc < 2) {
-        std::cout << "Scanner requires filename argument\n";
-        return 0;
-    }
-
-    // Check file exists
-    char *filename = argv[1];
-    if (!fileExists(filename)) {
-        std::cout << "No source file detected with name: \"" << filename << "\"\n";
-        return 0;
-    }
-    std::cout << "File detected...\n";
-
-    // initialize scanner
-    std::ifstream inputFile(filename);
-    std::string contents((std::istreambuf_iterator<char>(inputFile)), 
-        std::istreambuf_iterator<char>());
-    scan.init(filename, contents);
-
-    // scan for tokens and add them to the scanner's list
-    int nextWord = 0;
-    while(nextWord != T_EOF) {
-        nextWord = scan.getNextToken();
-    }
-    scan.writeWordList();
-    std::cout << "Wrote list of words to \"compiler/build/wordlist.txt\"\n";
-
-    return 0;
+// getter for wordlist to be passed to parser
+std::list<Word> Scanner::getWordList() {
+    return this->wordList;
 }
+
+
+// main code for scanner, deprecated for parser construction
+
+// int main(int argc, char **argv) {
+
+//     // Check arg count
+//     if (argc < 2) {
+//         std::cout << "Scanner requires filename argument\n";
+//         return 0;
+//     }
+
+//     // Check file exists
+//     char *filename = argv[1];
+//     if (!fileExists(filename)) {
+//         std::cout << "No source file detected with name: \"" << filename << "\"\n";
+//         return 0;
+//     }
+//     std::cout << "File detected...\n";
+
+//     // initialize scanner
+//     std::ifstream inputFile(filename);
+//     std::string contents((std::istreambuf_iterator<char>(inputFile)), 
+//         std::istreambuf_iterator<char>());
+//     scan.init(filename, contents);
+
+//     // scan for tokens and add them to the scanner's list
+//     int nextWord = 0;
+//     while(nextWord != T_EOF) {
+//         nextWord = scan.getNextToken();
+//     }
+//     scan.writeWordList();
+//     std::cout << "Wrote list of words to \"compiler/build/wordlist.txt\"\n";
+
+//     return 0;
+// }
