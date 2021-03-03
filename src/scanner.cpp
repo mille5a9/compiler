@@ -327,6 +327,11 @@ std::list<Word> Scanner::getWordList() {
     return this->wordList;
 }
 
+// getter for symbol table to be passed to parser
+SymbolTable Scanner::getSymbolTable() {
+    return this->symbolTable;
+}
+
 
 // main code for scanner, deprecated for parser construction
 
