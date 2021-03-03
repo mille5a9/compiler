@@ -4,9 +4,10 @@
 #include "symboltable.h"
 
 struct Word {
+    Word() = default;
     Word(std::string name, int lineNum, int colNum,  int type);
     std::string tokenString;
-    int tokenType, line, col;
+    int tokenType = 0, line, col;
     // char stringValue[256];
     // int intValue = 0; // also used for bool
     // float floatValue = 0.0;
