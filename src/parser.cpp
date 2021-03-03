@@ -2,8 +2,10 @@
 
 #include "parser.h"
 
-Parser::Parser(std::list<Word> words) {
-
+// constructs the parser with the wordlist from the scanner and the symbol table generated
+Parser::Parser(std::list<Word> words, SymbolTable table) {
+    this->wordList = words;
+    this->symbolTable = table;
 }
 
 void Parser::parse() {
@@ -24,17 +26,27 @@ int main(int argc, char **argv) {
         return 0;
     }
     std::cout << "File detected...\n";
+
     // initialize scanner
     std::ifstream inputFile(filename);
     std::string contents((std::istreambuf_iterator<char>(inputFile)), 
         std::istreambuf_iterator<char>());
+    std::cout << "Scan initialization...\n";
     scan.init(filename, contents);
+
     // scan for tokens and add them to the scanner's list
     int nextWord = 0;
+    std::cout << "Scanning in progress...\n";
     while(nextWord != T_EOF) {
         nextWord = scan.getNextToken();
     }
     scan.writeWordList();
     std::cout << "Wrote list of words to \"compiler/build/wordlist.txt\"\n";
+
+    std::cout << "Consulting parser...\n";
+    std::list<Word> words = scan.getWordList();
+    SymbolTable table = scan.getSymbolTable();
+    Parser parser = Parser(words, table);
+
     return 0;
 }
