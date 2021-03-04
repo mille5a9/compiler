@@ -332,6 +332,10 @@ SymbolTable Scanner::getSymbolTable() {
     return this->symbolTable;
 }
 
+Record *Scanner::symbolLookup(std::string tokenString) {
+    return this->symbolTable.lookup(tokenString);
+}
+
 
 // main code for scanner, deprecated for parser construction
 

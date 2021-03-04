@@ -35,6 +35,7 @@ static class Scanner {
         void writeWordList();
         std::list<Word> getWordList();
         SymbolTable getSymbolTable();
+        Record *symbolLookup(std::string tokenString);
 } scan;
 
 #endif
