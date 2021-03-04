@@ -82,35 +82,38 @@ class Parser {
         void parse(); // represents <program> from the syntax cfg
         int peek();
         Word yoink();
+
+        // assessing grammar
         bool match(int term);
+        void parsingError(std::string expected);
+        Node *follow(std::string expectedTokenString);
 
         // expression resolvers
         // number, string, bound, identifier are terminals so no function
-        Node programHeader();
-        Node programBody();
-        Node declaration();
-        Node procDeclaration();
-        Node procHeader();
-        Node procBody();
-        Node paramList();
-        Node param();
-        Node varDeclaration();
-        Node typeDeclaration();
-        Node typeMark();
-        Node statement();
-        Node procCall();
-        Node assignStatement();
-        Node destination();
-        Node ifStatement();
-        Node loopStatement();
-        Node returnStatement();
-        Node expression();
-        Node mathOperator();
-        Node relation();
-        Node term();
-        Node factor();
-        Node name();
-        Node argList();
+        Node *programHeader();
+        Node *programBody();
+        Node *declaration();
+        Node *procDeclaration();
+        Node *procHeader();
+        Node *procBody();
+        Node *paramList();
+        Node *param();
+        Node *varDeclaration();
+        Node *typeMark();
+        Node *statement();
+        Node *procCall();
+        Node *assignStatement();
+        Node *destination();
+        Node *ifStatement();
+        Node *loopStatement();
+        Node *returnStatement();
+        Node *expression();
+        Node *mathOperator();
+        Node *relation();
+        Node *term();
+        Node *factor();
+        Node *name();
+        Node *argList();
 };
 
 #endif
