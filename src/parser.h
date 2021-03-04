@@ -80,8 +80,9 @@ class Parser {
     public:
         Parser(std::list<Word> words, SymbolTable table);
         void parse(); // represents <program> from the syntax cfg
-        bool match(int term);
         int peek();
+        Word yoink();
+        bool match(int term);
 
         // expression resolvers
         // number, string, bound, identifier are terminals so no function
