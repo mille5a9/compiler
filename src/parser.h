@@ -3,47 +3,113 @@
 
 #include "scanner.h"
 
-// class Node {
-//     Node *left;     // an unspecified child node will be a NULL pointer
-//     Node *right;
-//     Word terminal;  // an unspecified terminal will have int type 0
+// definiting expression IDs, 0 (NULL) means terminal
+#define E_PROG      1
+#define E_PROGHEAD  2
+#define E_PROGBODY  3
+#define E_ID        4
+#define E_DECLARE   5
+#define E_STMT      6
+#define E_PROCDEC   7
+#define E_VARDEC    8
+#define E_TYPEDEC   9
+#define E_PROCHEAD  10
+#define E_PROCBODY  11
+#define E_TYPEMARK  12
+#define E_PARAMS    13
+#define E_PARAM     14
+#define E_BOUND     15
+#define E_ASGNSTMT  16
+#define E_IFSTMT    17
+#define E_LPSTMT    18
+#define E_RTRNSTMT  19
+#define E_PROCCALL  20
+#define E_ARGS      21
+#define E_DEST      22
+#define E_EXPR      23
+#define E_MATHOP    24
+#define E_REL       25
+#define E_TERM      26
+#define E_FACTOR    27
+#define E_NAME      28
+#define E_NUM       29
+#define E_STR       30
 
-//     public:
-//         // constructors
-//         Node() = default;
-//         Node(Word term) { terminal = term; }
-//         Node(Node *l, Node *r) { left = l; right = r; }
-//         Node(Node *l, Node *r, Word term) { left = l; right = r; terminal = term; }
+class Node {
+    std::list<Node*> children; // front of this list is the "left" child
+    Word terminal;
+    int exprId = 0; // terminals have zero
 
-//         // getters
-//         Node *getLeft() { return left; }
-//         Node *getRight() { return right; }
-//         Word getTerm() { return terminal; }
-//         int getTermType() { return terminal.tokenType; }
+    public:
+        // constructors
+        Node() = default;
+        Node(int id) { exprId = id; }
+        Node(Word term) { terminal = term; }
 
-//         // setters
-//         void setLeft(Node *l) { left = l; }
-//         void setRight(Node *r) { right = r; }
-//         void setTerm(Word term) { terminal = term; }
+        // getters
+        std::list<Node*> getChildren() { return children; }
+        int getExprId() { return exprId; }
+        Word getTerminal() { return terminal; }
 
-//         // destruction
-//         ~Node() { delete left; delete right; };
-// };
+        // setters
+        void addChild(Node *x) { children.push_back(x); }
+        void setTerminal(Word term) { terminal = term; }
 
-// class ParserTree {
-//     Node head;
+        // destruction
+        ~Node() { 
+            while(!children.empty()) { 
+                delete children.front();
+                children.pop_front();
+            }
+        }
+};
 
-//     public:
-//         ParserTree() = default;
-// };
+class ParserTree {
+    Node *head;
+
+    public:
+        ParserTree() { head = new Node(1); }
+        Node *getHead() { return head; }
+};
 
 class Parser {
     std::list<Word> wordList;
+    ParserTree tree;
     SymbolTable symbolTable;
 
     public:
         Parser(std::list<Word> words, SymbolTable table);
-        void parse();
+        void parse(); // represents <program> from the syntax cfg
+        bool match(int term);
+        int peek();
+
+        // expression resolvers
+        // number, string, bound, identifier are terminals so no function
+        Node programHeader();
+        Node programBody();
+        Node declaration();
+        Node procDeclaration();
+        Node procHeader();
+        Node procBody();
+        Node paramList();
+        Node param();
+        Node varDeclaration();
+        Node typeDeclaration();
+        Node typeMark();
+        Node statement();
+        Node procCall();
+        Node assignStatement();
+        Node destination();
+        Node ifStatement();
+        Node loopStatement();
+        Node returnStatement();
+        Node expression();
+        Node mathOperator();
+        Node relation();
+        Node term();
+        Node factor();
+        Node name();
+        Node argList();
 };
 
 #endif
