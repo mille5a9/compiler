@@ -167,6 +167,38 @@ int Scanner::getNextToken() {
         }
         std::cout << entireWord;
 
+        // check for type names and boolean literals
+        if (entireWord == "INTEGER") {
+            Word integerWord = Word(entireWord, lineCounter, colCounter, T_INTEGER);
+            this->wordList.push_back(integerWord);
+            return current;
+        }
+        else if (entireWord == "FLOAT") {
+            Word floatWord = Word(entireWord, lineCounter, colCounter, T_FLOAT);
+            this->wordList.push_back(floatWord);
+            return current;
+        }
+        else if (entireWord == "STRING") {
+            Word stringWord = Word(entireWord, lineCounter, colCounter, T_STRING);
+            this->wordList.push_back(stringWord);
+            return current;
+        }
+        else if (entireWord == "BOOL") {
+            Word boolWord = Word(entireWord, lineCounter, colCounter, T_BOOL);
+            this->wordList.push_back(boolWord);
+            return current;
+        }
+        else if (entireWord == "TRUE") {
+            Word trueWord = Word(entireWord, lineCounter, colCounter, T_TRUE);
+            this->wordList.push_back(trueWord);
+            return current;
+        }
+        else if (entireWord == "FALSE") {
+            Word falseWord = Word(entireWord, lineCounter, colCounter, T_FALSE);
+            this->wordList.push_back(falseWord);
+            return current;
+        }
+        
         // check for reserved words / used identifiers
         Record *reserved = this->symbolTable.lookup(entireWord);
 
@@ -196,14 +228,14 @@ int Scanner::getNextToken() {
 
     // handle numeric literal
     if (isdigit(current)) {
-        int numericSubtype = T_INTEGER;
+        int numericSubtype = T_ILITERAL;
         std::list<char> digits;
         digits.push_back(current);
 
         // store entire word in list of letters
         int next = this->peekScannerDigit();
         while (next != 0) {
-            if (current == '.') numericSubtype = T_FLOAT;
+            if (current == '.') numericSubtype = T_FLITERAL;
             digits.push_back(current);
             next = this->peekScannerDigit();
         }
@@ -252,7 +284,7 @@ int Scanner::getNextToken() {
         }
         
         // tokenize this literal
-        Word stringLiteral = Word(entireWord, lineCounter, colCounter, T_STRING);
+        Word stringLiteral = Word(entireWord, lineCounter, colCounter, T_SLITERAL);
         this->wordList.push_back(stringLiteral);
     }
 
