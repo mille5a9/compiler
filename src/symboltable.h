@@ -41,11 +41,15 @@
 #define T_LESSEQUIV 275
 #define T_NOTEQUIV 276
 #define T_NOT 277
-#define T_IDENTIFIER 278 // identifiers, constants
+#define T_IDENTIFIER 278 // identifiers, constants, typenames
 #define T_INTEGER 279
-#define T_FLOAT 280
-#define T_STRING 281
-#define T_EOF 282 // special indicator of end-of-file
+#define T_ILITERAL 280
+#define T_FLOAT 281
+#define T_FLITERAL 282
+#define T_STRING 283
+#define T_SLITERAL 284
+#define T_BOOL 285
+#define T_EOF 286 // special indicator of end-of-file
 
 #include <unordered_map>
 #include <iostream>
