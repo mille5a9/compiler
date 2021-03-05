@@ -87,9 +87,10 @@ class Parser {
         bool match(int term);
         void parsingError(std::string expected);
         Node *follow(std::string expectedTokenString);
+        Node *follow();
 
         // expression resolvers
-        // number, string, bound, identifier are terminals so no function
+        // string, bound, identifier are terminals so no function
         Node *programHeader();
         Node *programBody();
         Node *declaration();
