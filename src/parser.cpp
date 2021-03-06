@@ -35,6 +35,14 @@ void Parser::parsingError(std::string expected) {
     this->wordList.pop_front(); // discard mistake, attempt to continue with the parse
 }
 
+// alerts of error without suggestion
+void Parser::parsingError() {
+    Word next = this->wordList.front();
+    std::cout << "Error (" << next.line << ", " << next.col << "): "
+        << "Unexpected instance of  \"" << next.tokenString << "\".\n";
+    this->wordList.pop_front(); // discard mistake, attempt to continue with the parse
+}
+
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 Node *Parser::follow(std::string expectedTokenString) {
     Record *expected = scan.symbolLookup(expectedTokenString);
@@ -47,12 +55,21 @@ Node *Parser::follow(std::string expectedTokenString) {
 
 // Finds a match for an identifier or literal that is already
 // confirmed to be the next token type via peek()
-Node *Parser::follow() {
-    Record *expected = scan.symbolLookup(this->wordList.front().tokenString);
-    if (this->match(expected->tokenType)) return new Node(this->yoink());
+//
+// Optional support for 2 args when a number (int or float?) is specified
+Node *Parser::follow(int expectedType1, int expectedType2 = -1) {
+    int next = this->peek();
+
+    if (next == expectedType1 || next == expectedType2) {
+        Record *expected = scan.symbolLookup(this->wordList.front().tokenString);
+        if (this->match(expected->tokenType)) return new Node(this->yoink());
+        else {
+            this->parsingError(expected->tokenString);
+            return NULL; // not sure if this is the best way to handle the failed case
+        }
+    }
     else {
-        this->parsingError(expected->tokenString);
-        return NULL; // not sure if this is the best way to handle the failed case
+        this->parsingError();
     }
 }
 
@@ -80,7 +97,7 @@ void Parser::parse() {
 Node *Parser::programHeader() {
     Node *programHeader = new Node(E_PROGHEAD);
     programHeader->addChild(this->follow("PROGRAM"));
-    programHeader->addChild(this->follow());
+    programHeader->addChild(this->follow(T_IDENTIFIER));
     programHeader->addChild(this->follow("IS"));
 
     return programHeader;
@@ -150,7 +167,7 @@ Node *Parser::procDeclaration() {
 Node *Parser::procHeader() {
     Node *procedureHeader = new Node(E_PROCHEAD);
     procedureHeader->addChild(this->follow("PROCEDURE"));
-    procedureHeader->addChild(this->follow());
+    procedureHeader->addChild(this->follow(T_IDENTIFIER));
     procedureHeader->addChild(this->follow(":"));
     procedureHeader->addChild(this->typeMark());
     procedureHeader->addChild(this->follow("("));
@@ -221,24 +238,18 @@ Node *Parser::param() {
 // bound (sneaky terminal), right bracket terminal} <- optional
 Node *Parser::varDeclaration() {
     Node *varDeclaration(new Node(E_VARDEC));
+
     varDeclaration->addChild(this->follow("VARIABLE"));
-    varDeclaration->addChild(this->follow());
+    varDeclaration->addChild(this->follow(T_IDENTIFIER));
     varDeclaration->addChild(this->follow(":"));
     varDeclaration->addChild(this->typeMark());
 
     // optional bound declaration
     if (this->peek() == T_LBRACKET) {
         varDeclaration->addChild(this->follow("["));
+        varDeclaration->addChild(this->follow(T_ILITERAL, T_FLITERAL));
+        varDeclaration->addChild(this->follow("]"));
     }
-    else return varDeclaration;
-
-    // handle bound
-    if (this->peek() == T_ILITERAL || this->peek() == T_FLITERAL) {
-        varDeclaration->addChild(this->follow());
-    }
-    else this->parsingError("a number");
-
-    varDeclaration->addChild(this->follow("]"));
 
     return varDeclaration;
 }
@@ -261,70 +272,262 @@ Node *Parser::typeMark() {
         case T_BOOL :
             typeMark->addChild(this->follow("BOOL"));
             break;
+        default :
+            this->parsingError("a type specification");
     }
+
+    return typeMark;
 }
 
 // 1 of 4 types of statement: assignment, if, loop, return
 Node *Parser::statement() {
+    Node *statement = new Node(E_STMT);
+    switch (this->peek()) {
+        case T_IDENTIFIER :
+            statement->addChild(this->follow(T_IDENTIFIER));
+            break;
+        case T_IF :
+            statement->addChild(this->follow("IF"));
+            break;
+        case T_FOR :
+            statement->addChild(this->follow("FOR"));
+            break;
+        case T_RETURN :
+            statement->addChild(this->follow("RETURN"));
+            break;
+        default :
+            this->parsingError("a statement keyword or variable name");
+    }
 
+    return statement;
 }
 
 // identifier, left paren terminal, expression, right paren terminal
-Node *Parser::procCall() {
+Node *Parser::procCall(bool skipId = false) {
+    Node *procCall = new Node(E_PROCCALL);
+    if (!skipId) procCall->addChild(this->follow(T_IDENTIFIER));
+    procCall->addChild(this->follow("("));
+    procCall->addChild(this->argList());
+    procCall->addChild(this->follow(")"));
 
+    return procCall;
 }
 
 // destination, "assign" terminal, expression
 Node *Parser::assignStatement() {
+    Node *assignStatement = new Node(E_ASGNSTMT);
 
+    assignStatement->addChild(this->destination());
+    assignStatement->addChild(this->follow("ASSIGN"));
+    assignStatement->addChild(this->expression());
+
+    return assignStatement;
 }
 
 // identifier, {left bracket terminal, expression, right bracket terminal} <- optional
 Node *Parser::destination() {
+    Node *destination = new Node(E_DEST);
 
+    destination->addChild(this->follow(T_IDENTIFIER));
+
+    // optional bound expression
+    if (this->peek() == T_LBRACKET) {
+        destination->addChild(this->follow("["));
+        destination->addChild(this->expression());
+        destination->addChild(this->follow("]"));
+    }
+
+    return destination;
 }
 
 // "if", "lparen", expression, "rparen", "then", 0 or more [statement, ";"],
 // {"else", 0 or more of [statement, ";"]} <- optional, "end", "if"
 Node *Parser::ifStatement() {
+    Node *ifStatement = new Node(E_IFSTMT);
 
+    ifStatement->addChild(this->follow("FOR"));
+    ifStatement->addChild(this->follow("("));
+    ifStatement->addChild(this->expression());
+    ifStatement->addChild(this->follow(")"));
+    ifStatement->addChild(this->follow("THEN"));
+
+    // find 0 or more statements
+    int next = this->peek();
+    while (next == T_IDENTIFIER || next == T_IF || 
+        next == T_FOR || next == T_RETURN) {
+        ifStatement->addChild(this->statement());
+        ifStatement->addChild(this->follow(";"));
+        next = this->peek();
+    }
+
+    // optional else clause
+    if (this->peek() == T_ELSE) {
+        ifStatement->addChild(this->follow("ELSE"));
+
+        // find 0 or more statements again
+        int next = this->peek();
+        while (next == T_IDENTIFIER || next == T_IF || 
+            next == T_FOR || next == T_RETURN) {
+            ifStatement->addChild(this->statement());
+            ifStatement->addChild(this->follow(";"));
+            next = this->peek();
+        }
+    }
+    
+    ifStatement->addChild(this->follow("END"));
+    ifStatement->addChild(this->follow("IF"));
+
+    return ifStatement;
 }
 
 // "for", "lparen", assignment statement, ";", expression, "rparen",
 // 0 or more of [statement, ";"], "end", "for"
 Node *Parser::loopStatement() {
+    Node *loopStatement = new Node(E_LPSTMT);
 
+    loopStatement->addChild(this->follow("FOR"));
+    loopStatement->addChild(this->follow("("));
+    loopStatement->addChild(this->assignStatement());
+    loopStatement->addChild(this->follow(";"));
+    loopStatement->addChild(this->expression());
+    loopStatement->addChild(this->follow(")"));
+    
+    // find 0 or more statements
+    int next = this->peek();
+    while (next == T_IDENTIFIER || next == T_IF || 
+        next == T_FOR || next == T_RETURN) {
+        loopStatement->addChild(this->statement());
+        loopStatement->addChild(this->follow(";"));
+        next = this->peek();
+    }
+
+    loopStatement->addChild(this->follow("END"));
+    loopStatement->addChild(this->follow("FOR"));
+
+    return loopStatement;
 }
 
 // "return", expression
 Node *Parser::returnStatement() {
+    Node *returnStatement = new Node(E_RTRNSTMT);
+    returnStatement->addChild(this->follow("RETURN"));
+    returnStatement->addChild(this->expression());
 
+    return returnStatement;
 }
 
 // expression, "&", mathop OR
 // expression, "|", mathop OR
-// relation
+// {"NOT"} <- optional, mathop
 Node *Parser::expression() {
+    Node *expression = new Node(E_EXPR);
 
+    // optional not and then a mathop
+    if (this->peek() == T_NOT) expression->addChild(this->follow("NOT"));
+    expression->addChild(this->mathOperation());
+    expression->addChild(this->expressionPrime());
+
+    return expression;
+}
+
+// helper for left recursion elimination
+Node *Parser::expressionPrime() {
+    Node *expression = new Node(E_EXPR);
+
+    if (this->peek() == T_AND) {
+        expression->addChild(this->follow("AND"));
+        expression->addChild(this->mathOperation());
+        expression->addChild(this->expressionPrime());
+    }
+    else if (this->peek() == T_OR) {
+        expression->addChild(this->follow("OR"));
+        expression->addChild(this->mathOperation());
+        expression->addChild(this->expressionPrime());
+    }
+
+    return expression;
 }
 
 // mathop, "+", relation OR
 // mathop, "-", relation OR
 // relation
-Node *Parser::mathOperator() {
+Node *Parser::mathOperation() {
+    Node *mathOperation = new Node(E_MATHOP);
+    mathOperation->addChild(this->relation());
+    mathOperation->addChild(this->termPrime());
+    return mathOperation;
+}
 
+// helper for left recursion elimination
+Node *Parser::mathOperationPrime() {
+    Node *mathOperation = new Node(E_MATHOP);
+
+    switch (this->peek()) {
+        case T_ADD :
+            mathOperation->addChild(this->follow("+"));
+            mathOperation->addChild(this->relation());
+            mathOperation->addChild(this->termPrime());
+            break;
+        case T_SUB :
+            mathOperation->addChild(this->follow("-"));
+            mathOperation->addChild(this->relation());
+            mathOperation->addChild(this->termPrime());
+    }
+
+    return mathOperation;
 }
 
 // relation, ["<" or ">=" or "<=" or ">" or "==" or "!="], term OR
 // just term
 Node *Parser::relation() {
+    Node *relation = new Node(E_REL);
+    relation->addChild(this->term());
+    relation->addChild(this->termPrime());
+    return relation;
+}
 
+// helper for left recursion elimination
+Node *Parser::relationPrime() {
+    Node *relation = new Node(E_REL);
+    int next = this->peek();
+
+    if (next != T_LESS && next != T_MOREEQUIV && next != T_LESSEQUIV &&
+        next != T_MORE && next != T_EQUIV && next != T_NOTEQUIV) 
+        return relation;
+
+    relation->addChild(this->follow(next));
+    relation->addChild(this->term());
+    relation->addChild(this->relationPrime());
+
+    return relation;
 }
 
 // term, ["*" or "/"], factor OR
 // just factor
 Node *Parser::term() {
+    Node *term = new Node(E_TERM);
+    term->addChild(this->factor());
+    term->addChild(this->termPrime());
+    return term;
+}
 
+// helper for left recursion elimination
+Node *Parser::termPrime() {
+    Node *term = new Node(E_TERM);
+
+    switch (this->peek()) {
+        case T_MULT :
+            term->addChild(this->follow("*"));
+            term->addChild(this->factor());
+            term->addChild(this->termPrime());
+            break;
+        case T_DIVIDE :
+            term->addChild(this->follow("/"));
+            term->addChild(this->factor());
+            term->addChild(this->termPrime());
+    }
+
+    return term;
 }
 
 // "lparen", expression, "rparen" OR
@@ -335,17 +538,84 @@ Node *Parser::term() {
 // true terminal OR
 // false terminal
 Node *Parser::factor() {
+    Node *factor = new Node(E_FACTOR);
 
+    switch (this->peek()) {
+        case T_LPAREN : // expression in parens
+            factor->addChild(this->follow("("));
+            factor->addChild(this->expression());
+            factor->addChild(this->follow(")"));
+            break;
+
+        case T_SUB :
+            factor->addChild(this->follow("-"));
+
+        case T_IDENTIFIER : // procCall or name
+            // these two start with the same token, so
+            // here we use the odd overloads
+
+            // this if filters out numbers that hit the T_SUB case
+            if (this->peek() == T_IDENTIFIER) { 
+                factor->addChild(this->follow(T_IDENTIFIER));
+
+                if (this->peek() == T_LPAREN) {// specifies procCall
+                    factor->addChild(this->procCall(true));
+                }
+                else { // assume <name>, call the id skip overload
+                    factor->addChild(this->name(true));
+                }
+                return factor;
+            }
+
+        case T_ILITERAL : case T_FLITERAL :
+            if (this->peek() == T_ILITERAL) factor->addChild(this->follow(T_ILITERAL));
+            if (this->peek() == T_FLITERAL) factor->addChild(this->follow(T_FLITERAL));
+            break;
+
+        case T_SLITERAL :
+            factor->addChild(this->follow(T_SLITERAL));
+            break;
+        case T_TRUE :
+            factor->addChild(this->follow(T_TRUE));
+            break;
+        case T_FALSE :
+            factor->addChild(this->follow(T_FALSE));
+            break;
+        default :
+            this->parsingError("a literal or variable name");
+
+    }
+    return factor;
 }
 
 
 // identifier, {"lbracket", expression, "rbracket"} <- optional
-Node *Parser::name() {
+Node *Parser::name(bool skipId = false) {
+    Node *name = new Node(E_NAME);
 
+    if (!skipId) name->addChild(this->follow(T_IDENTIFIER));
+
+    // optional left bracket denoting expression for index
+    if (this->peek() == T_LBRACKET) {
+        name->addChild(this->follow("["));
+        name->addChild(this->expression());
+        name->addChild(this->follow("]"));
+    }
+
+    return name;
 }
 
 // expression, ",", argument list OR
 // expression
 Node *Parser::argList() {
-    
+    Node *argList = new Node(E_ARGS);
+    argList->addChild(this->expression());
+
+    // optional comma to denote recursive call
+    if (this->peek() == T_COMMA) {
+        argList->addChild(this->follow(","));
+        argList->addChild(this->argList());
+    }
+
+    return argList;
 }

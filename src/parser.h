@@ -86,8 +86,9 @@ class Parser {
         // assessing grammar
         bool match(int term);
         void parsingError(std::string expected);
+        void parsingError();
         Node *follow(std::string expectedTokenString);
-        Node *follow();
+        Node *follow(int expectedType1, int expectedType2 = -1);
 
         // expression resolvers
         // string, bound, identifier are terminals so no function
@@ -102,18 +103,22 @@ class Parser {
         Node *varDeclaration();
         Node *typeMark();
         Node *statement();
-        Node *procCall();
+        Node *procCall(bool skipId = false); // this is a lookahead, thumbs down
         Node *assignStatement();
         Node *destination();
         Node *ifStatement();
         Node *loopStatement();
         Node *returnStatement();
         Node *expression();
-        Node *mathOperator();
+        Node *expressionPrime(); //LRE
+        Node *mathOperation();
+        Node *mathOperationPrime(); //LRE
         Node *relation();
+        Node *relationPrime(); //LRE
         Node *term();
+        Node *termPrime(); //LRE
         Node *factor();
-        Node *name();
+        Node *name(bool skipId = false);
         Node *argList();
 };
 
