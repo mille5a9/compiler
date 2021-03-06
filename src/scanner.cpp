@@ -168,27 +168,7 @@ int Scanner::getNextToken() {
         std::cout << entireWord;
 
         // check for type names and boolean literals
-        if (entireWord == "INTEGER") {
-            Word integerWord = Word(entireWord, lineCounter, colCounter, T_INTEGER);
-            this->wordList.push_back(integerWord);
-            return current;
-        }
-        else if (entireWord == "FLOAT") {
-            Word floatWord = Word(entireWord, lineCounter, colCounter, T_FLOAT);
-            this->wordList.push_back(floatWord);
-            return current;
-        }
-        else if (entireWord == "STRING") {
-            Word stringWord = Word(entireWord, lineCounter, colCounter, T_STRING);
-            this->wordList.push_back(stringWord);
-            return current;
-        }
-        else if (entireWord == "BOOL") {
-            Word boolWord = Word(entireWord, lineCounter, colCounter, T_BOOL);
-            this->wordList.push_back(boolWord);
-            return current;
-        }
-        else if (entireWord == "TRUE") {
+        if (entireWord == "TRUE") {
             Word trueWord = Word(entireWord, lineCounter, colCounter, T_TRUE);
             this->wordList.push_back(trueWord);
             return current;
