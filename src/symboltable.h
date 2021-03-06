@@ -22,14 +22,14 @@
 
 #define T_WHILE 257 // reserved words
 #define T_IF 258
-#define T_RETURN 259
-#define T_PROGRAM 260
-#define T_IS 261
-#define T_BEGIN 262
-#define T_GLOBAL 263
-#define T_VARIABLE 264
-#define T_TYPE 265
-#define T_ENUM 266
+#define T_ELSE 259
+#define T_RETURN 260
+#define T_PROGRAM 261
+#define T_IS 262
+#define T_BEGIN 263
+#define T_GLOBAL 264
+#define T_VARIABLE 265
+#define T_TYPE 266
 #define T_PROC 267
 #define T_END 268
 #define T_FOR 269
@@ -49,7 +49,7 @@
 #define T_STRING 283
 #define T_SLITERAL 284
 #define T_BOOL 285
-#define T_EOF 286 // special indicator of end-of-file
+#define T_EOF 287 // special indicator of end-of-file
 
 #include <unordered_map>
 #include <iostream>
