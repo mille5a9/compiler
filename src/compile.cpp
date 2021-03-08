@@ -1,6 +1,9 @@
 //  recursive descent compiler by Andrew Miller
 
 #include "parser.h"
+#include "scanner.h"
+#include "word.h"
+#include "symboltable.h"
 
 int main(int argc, char **argv) {
     // Check arg count
@@ -36,6 +39,10 @@ int main(int argc, char **argv) {
     std::list<Word> words = scan.getWordList();
     SymbolTable table = scan.getSymbolTable();
     Parser parser = Parser(words, table);
+    parser.parse();
+    std::cout << "Parse Complete...\n";
+    std::cout << "Printing parsetree.txt...\n";
+    parser.printTree("../build/parsetree.txt");
 
     return 0;
 }

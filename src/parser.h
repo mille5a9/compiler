@@ -1,7 +1,10 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "scanner.h"
+#include <list>
+#include <fstream>
+#include "symboltable.h"
+#include "word.h"
 
 // definiting expression IDs, 0 (NULL) means terminal
 #define E_PROG      1
@@ -46,6 +49,9 @@ class Node {
         Node(int id) { exprId = id; }
         Node(Word term) { terminal = term; }
 
+        // output
+        void printNode(std::ofstream &file, int layer);
+
         // getters
         std::list<Node*> getChildren() { return children; }
         int getExprId() { return exprId; }
@@ -70,56 +76,59 @@ class ParserTree {
     public:
         ParserTree() { head = new Node(1); }
         Node *getHead() { return head; }
+        void outputTree(std::string path);
 };
 
 class Parser {
     std::list<Word> wordList;
     ParserTree tree;
     SymbolTable symbolTable;
+    
+    int peek();
+    Word yoink();
+
+    // assessing grammar
+    bool match(int term);
+    void parsingError(std::string expected);
+    void parsingError();
+    Node *follow(std::string expectedTokenString);
+    Node *follow(int expectedType1, int expectedType2 = -1);
+
+    // expression resolvers
+    // string, bound, identifier are terminals so no function
+    Node *programHeader();
+    Node *programBody();
+    Node *declaration();
+    Node *procDeclaration();
+    Node *procHeader();
+    Node *procBody();
+    Node *paramList();
+    Node *param();
+    Node *varDeclaration();
+    Node *typeMark();
+    Node *statement();
+    Node *procCall(bool skipId = false); // this is a lookahead, thumbs down
+    Node *assignStatement();
+    Node *destination();
+    Node *ifStatement();
+    Node *loopStatement();
+    Node *returnStatement();
+    Node *expression();
+    Node *expressionPrime(); //LRE
+    Node *mathOperation();
+    Node *mathOperationPrime(); //LRE
+    Node *relation();
+    Node *relationPrime(); //LRE
+    Node *term();
+    Node *termPrime(); //LRE
+    Node *factor();
+    Node *name(bool skipId = false);
+    Node *argList();
 
     public:
         Parser(std::list<Word> words, SymbolTable table);
         void parse(); // represents <program> from the syntax cfg
-        int peek();
-        Word yoink();
-
-        // assessing grammar
-        bool match(int term);
-        void parsingError(std::string expected);
-        void parsingError();
-        Node *follow(std::string expectedTokenString);
-        Node *follow(int expectedType1, int expectedType2 = -1);
-
-        // expression resolvers
-        // string, bound, identifier are terminals so no function
-        Node *programHeader();
-        Node *programBody();
-        Node *declaration();
-        Node *procDeclaration();
-        Node *procHeader();
-        Node *procBody();
-        Node *paramList();
-        Node *param();
-        Node *varDeclaration();
-        Node *typeMark();
-        Node *statement();
-        Node *procCall(bool skipId = false); // this is a lookahead, thumbs down
-        Node *assignStatement();
-        Node *destination();
-        Node *ifStatement();
-        Node *loopStatement();
-        Node *returnStatement();
-        Node *expression();
-        Node *expressionPrime(); //LRE
-        Node *mathOperation();
-        Node *mathOperationPrime(); //LRE
-        Node *relation();
-        Node *relationPrime(); //LRE
-        Node *term();
-        Node *termPrime(); //LRE
-        Node *factor();
-        Node *name(bool skipId = false);
-        Node *argList();
+        void printTree(std::string path);
 };
 
 #endif

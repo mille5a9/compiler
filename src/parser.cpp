@@ -1,6 +1,44 @@
 //  recursive descent compiler by Andrew Miller
 
 #include "parser.h"
+#include "scanner.h"
+#include "word.h"
+#include "symboltable.h"
+
+// used to recursively print every node in the parse tree
+void Node::printNode(std::ofstream &file, int layer) {
+    file << "\n";
+    for (int i = 0; i < layer; i++) {
+        file << "\t";
+    }
+
+    // check if it's a terminal node and print the terminal
+    if (this->children.empty()) {
+        file << this->terminal.tokenString << "(" << this->terminal.line << ","
+            << this->terminal.col << ")";
+    }
+    else {
+        file << this->exprId;
+
+        // print child nodes
+        std::list<Node*>::iterator it;
+        for (it = this->children.begin(); it != this->children.end(); ++it) {
+            (*it)->printNode(file, layer + 1);
+        }
+    }
+}
+
+// outputs the tree to path
+void ParserTree::outputTree(std::string path) {
+    std::ofstream treeOut;
+    treeOut.open(path, std::ofstream::out | std::ofstream::trunc);
+    (*head).printNode(treeOut, 0);
+    treeOut.close();
+}
+
+void Parser::printTree(std::string path) {
+    this->tree.outputTree(path);
+}
 
 // constructs the parser with the wordlist from the scanner and the symbol table generated
 Parser::Parser(std::list<Word> words, SymbolTable table) {
@@ -57,7 +95,7 @@ Node *Parser::follow(std::string expectedTokenString) {
 // confirmed to be the next token type via peek()
 //
 // Optional support for 2 args when a number (int or float?) is specified
-Node *Parser::follow(int expectedType1, int expectedType2 = -1) {
+Node *Parser::follow(int expectedType1, int expectedType2) {
     int next = this->peek();
 
     if (next == expectedType1 || next == expectedType2) {
@@ -70,6 +108,7 @@ Node *Parser::follow(int expectedType1, int expectedType2 = -1) {
     }
     else {
         this->parsingError();
+        return NULL; // not sure if this is the best way to handle the failed case
     }
 }
 
@@ -303,7 +342,7 @@ Node *Parser::statement() {
 }
 
 // identifier, left paren terminal, expression, right paren terminal
-Node *Parser::procCall(bool skipId = false) {
+Node *Parser::procCall(bool skipId) {
     Node *procCall = new Node(E_PROCCALL);
     if (!skipId) procCall->addChild(this->follow(T_IDENTIFIER));
     procCall->addChild(this->follow("("));
@@ -590,7 +629,7 @@ Node *Parser::factor() {
 
 
 // identifier, {"lbracket", expression, "rbracket"} <- optional
-Node *Parser::name(bool skipId = false) {
+Node *Parser::name(bool skipId) {
     Node *name = new Node(E_NAME);
 
     if (!skipId) name->addChild(this->follow(T_IDENTIFIER));
