@@ -9,11 +9,19 @@ CFLAGS = -Wall -g
 BUILDDIR = ../build
 
 # **************************************************** 
-parser: parser.o scanner.o symboltable.o word.o
-	$(CC) $(CFLAGS) -o $(BUILDDIR)/parser $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
+compile: compile.o parser.o scanner.o symboltable.o word.o
+	$(CC) $(CFLAGS) -o $(BUILDDIR)/compile $(BUILDDIR)/compile.o $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
 
 # **************************************************** 
-parser.o: parser.cpp parser.h symboltable.h word.h scanner.h
+compile.o: compile.cpp
+	$(CC) $(CFLAGS) -c compile.cpp -o $(BUILDDIR)/compile.o
+
+# **************************************************** 
+# parser: parser.o scanner.o symboltable.o word.o
+#	$(CC) $(CFLAGS) -o $(BUILDDIR)/parser $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
+
+# **************************************************** 
+parser.o: parser.cpp parser.h
 	$(CC) $(CFLAGS) -c parser.cpp -o $(BUILDDIR)/parser.o
 
 # **************************************************** 
@@ -21,7 +29,7 @@ parser.o: parser.cpp parser.h symboltable.h word.h scanner.h
 # 	$(CC) $(CFLAGS) -o $(BUILDDIR)/scanner $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o
 
 # ****************************************************
-scanner.o: scanner.cpp symboltable.h word.h scanner.h
+scanner.o: scanner.cpp scanner.h
 	$(CC) $(CFLAGS) -c scanner.cpp -o $(BUILDDIR)/scanner.o
 
 # ****************************************************
@@ -31,8 +39,12 @@ symboltable.o: symboltable.cpp symboltable.h
 # ****************************************************
 word.o: word.cpp word.h
 	$(CC) $(CFLAGS) -c word.cpp -o $(BUILDDIR)/word.o
+
 # Point.o: Point.h
 # Square.o: Square.h Point.h
 
 clean :
-	rm $(BUILDDIR)/parser $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o $(BUILDDIR)/wordlist.txt
+	rm $(BUILDDIR)/compile $(BUILDDIR)/compile.o 
+	rm $(BUILDDIR)/parser.o $(BUILDDIR)/scanner.o 
+	rm $(BUILDDIR)/symboltable.o $(BUILDDIR)/word.o 
+	rm $(BUILDDIR)/wordlist.txt $(BUILDDIR)/parsetree.txt
