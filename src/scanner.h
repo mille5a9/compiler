@@ -5,8 +5,6 @@
 #include <fstream>
 #include <list>
 #include <cstring>
-#include "symboltable.h"
-#include "word.h"
 
 // time-efficient check for file existence
 inline bool fileExists(char *filename) {

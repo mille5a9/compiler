@@ -1,7 +1,7 @@
 #ifndef WORD_H
 #define WORD_H
 
-#include "symboltable.h"
+#include <string>
 
 struct Word {
     Word() = default;

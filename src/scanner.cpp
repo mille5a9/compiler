@@ -1,6 +1,9 @@
 //  recursive descent compiler by Andrew Miller
 
+#include "parser.h"
 #include "scanner.h"
+#include "word.h"
+#include "symboltable.h"
 
 void Scanner::reportError(std::string message) {
     std::cout << "ERROR: " << message << std::endl;
@@ -165,7 +168,6 @@ int Scanner::getNextToken() {
             entireWord += letters.front();
             letters.pop_front();
         }
-        std::cout << entireWord;
 
         // check for type names and boolean literals
         if (entireWord == "TRUE") {

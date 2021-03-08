@@ -1,4 +1,6 @@
+
 #include "word.h"
+#include "symboltable.h"
 #include <ctype.h>
 #include <string>
 #include <algorithm>
