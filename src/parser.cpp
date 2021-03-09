@@ -48,12 +48,15 @@ Parser::Parser(std::list<Word> words, SymbolTable table) {
 }
 
 int Parser::peek() {
+    std::cout << "Entered peek()\n";
     if (this->wordList.empty()) return T_EOF;
     return this->wordList.front().tokenType;
 }
 
 // retrieves the front token and then obliterates it from the record
 Word Parser::yoink() {
+    std::cout << "Entered yoink()\n";
+    if (this->wordList.empty()) return Word();
     Word next = this->wordList.front();
     this->wordList.pop_front();
     return next;
@@ -61,11 +64,13 @@ Word Parser::yoink() {
 
 // checks a terminal id to make sure next token is that term
 bool Parser::match(int term) {
+    std::cout << "Entered match()\n";
     return (term == this->peek());
 }
 
 // alerts user of error in the grammar
 void Parser::parsingError(std::string expected) {
+    std::cout << "Entered parsingError(string)\n";
     Word next = this->wordList.front();
     std::cout << "Error (" << next.line << ", " << next.col << "): "
         << "Unexpected instance of  \"" << next.tokenString << "\". "
@@ -75,6 +80,7 @@ void Parser::parsingError(std::string expected) {
 
 // alerts of error without suggestion
 void Parser::parsingError() {
+    std::cout << "Entered parsingError()\n";
     Word next = this->wordList.front();
     std::cout << "Error (" << next.line << ", " << next.col << "): "
         << "Unexpected instance of  \"" << next.tokenString << "\".\n";
@@ -83,7 +89,8 @@ void Parser::parsingError() {
 
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 Node *Parser::follow(std::string expectedTokenString) {
-    Record *expected = scan.symbolLookup(expectedTokenString);
+    std::cout << "Entered follow(string)\n";
+    Record *expected = this->symbolTable.lookup(expectedTokenString);
     if (this->match(expected->tokenType)) return new Node(this->yoink());
     else {
         this->parsingError(expected->tokenString);
@@ -91,30 +98,46 @@ Node *Parser::follow(std::string expectedTokenString) {
     }
 }
 
-// Finds a match for an identifier or literal that is already
-// confirmed to be the next token type via peek()
-//
-// Optional support for 2 args when a number (int or float?) is specified
-Node *Parser::follow(int expectedType1, int expectedType2) {
+// Finds a match for an identifier
+Node *Parser::follow(int expectedType) {
+    std::cout << "Entered follow(int, int)\n";
     int next = this->peek();
 
-    if (next == expectedType1 || next == expectedType2) {
-        Record *expected = scan.symbolLookup(this->wordList.front().tokenString);
-        if (this->match(expected->tokenType)) return new Node(this->yoink());
+    if (next == expectedType) {
+        std::cout << "matched next in follow(int, int)\n";
+        std::cout << this->wordList.front().tokenString << std::endl;
+        Record *expected = this->symbolTable.lookup(this->wordList.front().tokenString);
+        std::cout << "looked up record\n";
+        if (expected == NULL) return new Node();
+        else if (this->match(expected->tokenType)) return new Node(this->yoink());
         else {
             this->parsingError(expected->tokenString);
-            return NULL; // not sure if this is the best way to handle the failed case
+            return new Node();; // not sure if this is the best way to handle the failed case
         }
     }
     else {
         this->parsingError();
-        return NULL; // not sure if this is the best way to handle the failed case
+        return new Node();; // not sure if this is the best way to handle the failed case
+    }
+}
+
+// Finds a match for a literal, different from an identifier because
+// it will not reference the symbol table
+Node *Parser::followLiteral(int literalType) {
+    std::cout << "Entered followLiteral(int)\n";
+    if (this->peek() == literalType) {
+        return new Node(this->yoink());
+    }
+    else {
+        this->parsingError();
+        return new Node(); // not sure if this is the best way to handle the failed case
     }
 }
 
 // populates parser tree using wordList and left recursion with single lookahead
 // looks for program header, program body, and then a period
 void Parser::parse() {
+    std::cout << "Entered parse()\n";
     Node *top = this->tree.getHead();
 
     // rest of the program here
@@ -134,6 +157,7 @@ void Parser::parse() {
 
 // looks for "program" terminal, an identifier, and "is" terminal
 Node *Parser::programHeader() {
+    std::cout << "Entered programHeader()\n";
     Node *programHeader = new Node(E_PROGHEAD);
     programHeader->addChild(this->follow("PROGRAM"));
     programHeader->addChild(this->follow(T_IDENTIFIER));
@@ -145,6 +169,7 @@ Node *Parser::programHeader() {
 // looks for 0 or more declarations with semicolon terminals, "begin" terminal,
 // 0 or more statements with semicolon terminals, "end", and then "program" 
 Node *Parser::programBody() {
+    std::cout << "Entered programBody()\n";
     Node *programBody = new Node(E_PROGBODY);
 
     // find 0 or more declarations
@@ -178,20 +203,22 @@ Node *Parser::programBody() {
 
 // "global" <- optional, procedure_dec or variable_dec
 Node *Parser::declaration() {
+    std::cout << "Entered declaration()\n";
     Node *declaration = new Node(E_DECLARE);
 
     // optional use of "global"
     if (this->peek() == T_GLOBAL) declaration->addChild(this->follow("GLOBAL"));
 
     // could be a variable or procedure declaration
-    if (this->peek() == T_PROC) declaration->addChild(this->follow("PROCEDURE"));
-    else declaration->addChild(this->follow("VARIABLE"));
+    if (this->peek() == T_PROC) declaration->addChild(this->procDeclaration());
+    else declaration->addChild(this->varDeclaration());
 
     return declaration;
 }
 
 // procedure header and procedure body
 Node *Parser::procDeclaration() {
+    std::cout << "Entered procDeclaration()\n";
     Node *procedure = new Node(E_PROCDEC);
 
     // baseline procedure parts (much like parse() but smaller)
@@ -204,6 +231,7 @@ Node *Parser::procDeclaration() {
 // "procedure", identifier, colon terminal, type mark, left paren terminal,
 // param list, right paren terminal
 Node *Parser::procHeader() {
+    std::cout << "Entered procHeader()\n";
     Node *procedureHeader = new Node(E_PROCHEAD);
     procedureHeader->addChild(this->follow("PROCEDURE"));
     procedureHeader->addChild(this->follow(T_IDENTIFIER));
@@ -219,6 +247,7 @@ Node *Parser::procHeader() {
 // 0 or more declarations with semicolon terminal, "begin", 0 or more
 // statements with semicolon terminal, "end", "procedure"
 Node *Parser::procBody() {
+    std::cout << "Entered procBody()\n";
     Node *procBody = new Node(E_PROCBODY);
 
     // find 0 or more declarations
@@ -254,6 +283,7 @@ Node *Parser::procBody() {
 // [parameter and comma terminal and param list] OR 
 // just parameter (no comma)
 Node *Parser::paramList() {
+    std::cout << "Entered paramList()\n";
     Node *parameterList = new Node(E_PARAMS);
 
     parameterList->addChild(this->param());
@@ -268,6 +298,7 @@ Node *Parser::paramList() {
 
 // always a variable declaration call
 Node *Parser::param() {
+    std::cout << "Entered param()\n";
     Node *param = new Node(E_PARAM);
     param->addChild(this->varDeclaration());
     return param;
@@ -276,6 +307,7 @@ Node *Parser::param() {
 // "variable", identifier, colon terminal, type mark, {left bracket terminal,
 // bound (sneaky terminal), right bracket terminal} <- optional
 Node *Parser::varDeclaration() {
+    std::cout << "Entered varDeclaration()\n";
     Node *varDeclaration(new Node(E_VARDEC));
 
     varDeclaration->addChild(this->follow("VARIABLE"));
@@ -286,7 +318,7 @@ Node *Parser::varDeclaration() {
     // optional bound declaration
     if (this->peek() == T_LBRACKET) {
         varDeclaration->addChild(this->follow("["));
-        varDeclaration->addChild(this->follow(T_ILITERAL, T_FLITERAL));
+        varDeclaration->addChild(this->followLiteral(this->peek()));
         varDeclaration->addChild(this->follow("]"));
     }
 
@@ -297,6 +329,7 @@ Node *Parser::varDeclaration() {
 // identifier
 // I THINK IDENTIFIER IS IN THIS SPEC BY MISTAKE
 Node *Parser::typeMark() {
+    std::cout << "Entered typeMark()\n";
     Node *typeMark = new Node(E_TYPEMARK);
     switch (this->peek()) {
         case T_INTEGER :
@@ -320,19 +353,20 @@ Node *Parser::typeMark() {
 
 // 1 of 4 types of statement: assignment, if, loop, return
 Node *Parser::statement() {
+    std::cout << "Entered statement()\n";
     Node *statement = new Node(E_STMT);
     switch (this->peek()) {
         case T_IDENTIFIER :
-            statement->addChild(this->follow(T_IDENTIFIER));
+            statement->addChild(this->assignStatement());
             break;
         case T_IF :
-            statement->addChild(this->follow("IF"));
+            statement->addChild(this->ifStatement());
             break;
         case T_FOR :
-            statement->addChild(this->follow("FOR"));
+            statement->addChild(this->loopStatement());
             break;
         case T_RETURN :
-            statement->addChild(this->follow("RETURN"));
+            statement->addChild(this->returnStatement());
             break;
         default :
             this->parsingError("a statement keyword or variable name");
@@ -343,6 +377,7 @@ Node *Parser::statement() {
 
 // identifier, left paren terminal, expression, right paren terminal
 Node *Parser::procCall(bool skipId) {
+    std::cout << "Entered procCall()\n";
     Node *procCall = new Node(E_PROCCALL);
     if (!skipId) procCall->addChild(this->follow(T_IDENTIFIER));
     procCall->addChild(this->follow("("));
@@ -354,6 +389,7 @@ Node *Parser::procCall(bool skipId) {
 
 // destination, "assign" terminal, expression
 Node *Parser::assignStatement() {
+    std::cout << "Entered assignStatement()\n";
     Node *assignStatement = new Node(E_ASGNSTMT);
 
     assignStatement->addChild(this->destination());
@@ -365,6 +401,7 @@ Node *Parser::assignStatement() {
 
 // identifier, {left bracket terminal, expression, right bracket terminal} <- optional
 Node *Parser::destination() {
+    std::cout << "Entered destination()\n";
     Node *destination = new Node(E_DEST);
 
     destination->addChild(this->follow(T_IDENTIFIER));
@@ -382,9 +419,10 @@ Node *Parser::destination() {
 // "if", "lparen", expression, "rparen", "then", 0 or more [statement, ";"],
 // {"else", 0 or more of [statement, ";"]} <- optional, "end", "if"
 Node *Parser::ifStatement() {
+    std::cout << "Entered ifStatement()\n";
     Node *ifStatement = new Node(E_IFSTMT);
 
-    ifStatement->addChild(this->follow("FOR"));
+    ifStatement->addChild(this->follow("IF"));
     ifStatement->addChild(this->follow("("));
     ifStatement->addChild(this->expression());
     ifStatement->addChild(this->follow(")"));
@@ -422,6 +460,7 @@ Node *Parser::ifStatement() {
 // "for", "lparen", assignment statement, ";", expression, "rparen",
 // 0 or more of [statement, ";"], "end", "for"
 Node *Parser::loopStatement() {
+    std::cout << "Entered loopStatement()\n";
     Node *loopStatement = new Node(E_LPSTMT);
 
     loopStatement->addChild(this->follow("FOR"));
@@ -448,6 +487,7 @@ Node *Parser::loopStatement() {
 
 // "return", expression
 Node *Parser::returnStatement() {
+    std::cout << "Entered returnStatement()\n";
     Node *returnStatement = new Node(E_RTRNSTMT);
     returnStatement->addChild(this->follow("RETURN"));
     returnStatement->addChild(this->expression());
@@ -459,6 +499,7 @@ Node *Parser::returnStatement() {
 // expression, "|", mathop OR
 // {"NOT"} <- optional, mathop
 Node *Parser::expression() {
+    std::cout << "Entered expression()\n";
     Node *expression = new Node(E_EXPR);
 
     // optional not and then a mathop
@@ -471,6 +512,7 @@ Node *Parser::expression() {
 
 // helper for left recursion elimination
 Node *Parser::expressionPrime() {
+    std::cout << "Entered expressionPrime()\n";
     Node *expression = new Node(E_EXPR);
 
     if (this->peek() == T_AND) {
@@ -491,26 +533,28 @@ Node *Parser::expressionPrime() {
 // mathop, "-", relation OR
 // relation
 Node *Parser::mathOperation() {
+    std::cout << "Entered mathOperation()\n";
     Node *mathOperation = new Node(E_MATHOP);
     mathOperation->addChild(this->relation());
-    mathOperation->addChild(this->termPrime());
+    mathOperation->addChild(this->mathOperationPrime());
     return mathOperation;
 }
 
 // helper for left recursion elimination
 Node *Parser::mathOperationPrime() {
+    std::cout << "Entered mathOperationPrime()\n";
     Node *mathOperation = new Node(E_MATHOP);
 
     switch (this->peek()) {
         case T_ADD :
             mathOperation->addChild(this->follow("+"));
             mathOperation->addChild(this->relation());
-            mathOperation->addChild(this->termPrime());
+            mathOperation->addChild(this->mathOperationPrime());
             break;
         case T_SUB :
             mathOperation->addChild(this->follow("-"));
             mathOperation->addChild(this->relation());
-            mathOperation->addChild(this->termPrime());
+            mathOperation->addChild(this->mathOperationPrime());
     }
 
     return mathOperation;
@@ -519,14 +563,16 @@ Node *Parser::mathOperationPrime() {
 // relation, ["<" or ">=" or "<=" or ">" or "==" or "!="], term OR
 // just term
 Node *Parser::relation() {
+    std::cout << "Entered relation()\n";
     Node *relation = new Node(E_REL);
     relation->addChild(this->term());
-    relation->addChild(this->termPrime());
+    relation->addChild(this->relationPrime());
     return relation;
 }
 
 // helper for left recursion elimination
 Node *Parser::relationPrime() {
+    std::cout << "Entered relationPrime()\n";
     Node *relation = new Node(E_REL);
     int next = this->peek();
 
@@ -544,6 +590,7 @@ Node *Parser::relationPrime() {
 // term, ["*" or "/"], factor OR
 // just factor
 Node *Parser::term() {
+    std::cout << "Entered term()\n";
     Node *term = new Node(E_TERM);
     term->addChild(this->factor());
     term->addChild(this->termPrime());
@@ -552,6 +599,7 @@ Node *Parser::term() {
 
 // helper for left recursion elimination
 Node *Parser::termPrime() {
+    std::cout << "Entered termPrime()\n";
     Node *term = new Node(E_TERM);
 
     switch (this->peek()) {
@@ -577,6 +625,7 @@ Node *Parser::termPrime() {
 // true terminal OR
 // false terminal
 Node *Parser::factor() {
+    std::cout << "Entered factor()\n";
     Node *factor = new Node(E_FACTOR);
 
     switch (this->peek()) {
@@ -605,20 +654,19 @@ Node *Parser::factor() {
                 }
                 return factor;
             }
-
+            // no break so that the T_SUB case can fall to this next one
         case T_ILITERAL : case T_FLITERAL :
-            if (this->peek() == T_ILITERAL) factor->addChild(this->follow(T_ILITERAL));
-            if (this->peek() == T_FLITERAL) factor->addChild(this->follow(T_FLITERAL));
+            factor->addChild(this->followLiteral(this->peek()));
             break;
 
         case T_SLITERAL :
-            factor->addChild(this->follow(T_SLITERAL));
+            factor->addChild(this->followLiteral(T_SLITERAL));
             break;
         case T_TRUE :
-            factor->addChild(this->follow(T_TRUE));
+            factor->addChild(this->follow("TRUE"));
             break;
         case T_FALSE :
-            factor->addChild(this->follow(T_FALSE));
+            factor->addChild(this->follow("FALSE"));
             break;
         default :
             this->parsingError("a literal or variable name");
@@ -630,6 +678,7 @@ Node *Parser::factor() {
 
 // identifier, {"lbracket", expression, "rbracket"} <- optional
 Node *Parser::name(bool skipId) {
+    std::cout << "Entered name()\n";
     Node *name = new Node(E_NAME);
 
     if (!skipId) name->addChild(this->follow(T_IDENTIFIER));
@@ -647,6 +696,7 @@ Node *Parser::name(bool skipId) {
 // expression, ",", argument list OR
 // expression
 Node *Parser::argList() {
+    std::cout << "Entered argList()\n";
     Node *argList = new Node(E_ARGS);
     argList->addChild(this->expression());
 

@@ -92,7 +92,8 @@ class Parser {
     void parsingError(std::string expected);
     void parsingError();
     Node *follow(std::string expectedTokenString);
-    Node *follow(int expectedType1, int expectedType2 = -1);
+    Node *follow(int expectedType1);
+    Node *followLiteral(int literalType);
 
     // expression resolvers
     // string, bound, identifier are terminals so no function
