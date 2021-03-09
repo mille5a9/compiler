@@ -87,7 +87,7 @@ int Scanner::getNextToken() {
             // the colon could be an assignment
             if (this->peekScanner('=')) {
                 this->wordList.push_back(Word(
-                    ":=", lineCounter, colCounter, T_ASSIGN));
+                    "ASSIGN", lineCounter, colCounter, T_ASSIGN));
             }
             else {
                 singleCharWord = current;
@@ -99,7 +99,7 @@ int Scanner::getNextToken() {
             // the > could be >=
             if (this->peekScanner('=')) {
                 this->wordList.push_back(Word(
-                    ">=", lineCounter, colCounter, T_MOREEQUIV));
+                    "MOREEQUIV", lineCounter, colCounter, T_MOREEQUIV));
             }
             else {
                 singleCharWord = current;
@@ -111,7 +111,7 @@ int Scanner::getNextToken() {
             // the < could be <=
             if (this->peekScanner('=')) {
                 this->wordList.push_back(Word(
-                    "<=", lineCounter, colCounter, T_LESSEQUIV));
+                    "LESSEQUIV", lineCounter, colCounter, T_LESSEQUIV));
             }
             else {
                 singleCharWord = current;
@@ -126,7 +126,7 @@ int Scanner::getNextToken() {
     if (current == '!') {
         if (this->peekScanner('=')) {
             this->wordList.push_back(Word(
-                "!=", lineCounter, colCounter, T_NOTEQUIV));
+                "NOTEQUIV", lineCounter, colCounter, T_NOTEQUIV));
             return current;
         }
         else {
@@ -136,7 +136,7 @@ int Scanner::getNextToken() {
     else if (current == '=') {
         if (this->peekScanner('=')) {
             this->wordList.push_back(Word(
-                "==", lineCounter, colCounter, T_EQUIV));
+                "EQUIV", lineCounter, colCounter, T_EQUIV));
             return current;
         }
         else {
@@ -187,6 +187,7 @@ int Scanner::getNextToken() {
         if (reserved == NULL) { // must be new identifier
 
             this->symbolTable.insert(Record(entireWord, T_IDENTIFIER));
+            std::cout << "SCANNER made word for " << entireWord << std::endl;
 
             // also make the word for this identifier
             // NOTE:: no scope token yet :shrug:
