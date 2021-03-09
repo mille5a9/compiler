@@ -11,9 +11,6 @@ struct Word {
     // char stringValue[256];
     // int intValue = 0; // also used for bool
     // float floatValue = 0.0;
-
-    static bool isLetter(int &in);
-    static bool isDigit(int &in);
 };
 
 struct DigitWord : Word {
