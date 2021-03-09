@@ -37,7 +37,11 @@ int main(int argc, char **argv) {
 
     std::cout << "Consulting parser...\n";
     std::list<Word> words = scan.getWordList();
+    std::cout << "Got word list...\n";
     SymbolTable table = scan.getSymbolTable();
+    std::cout << "Got symbol table...\n";
+    table.print();
+    std::cout << "Starting parse...\n";
     Parser parser = Parser(words, table);
     parser.parse();
     std::cout << "Parse Complete...\n";
