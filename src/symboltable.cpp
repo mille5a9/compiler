@@ -8,6 +8,7 @@ Record* SymbolTable::lookup(std::string tokenString) {
     my_unordered_map::const_iterator subject =
         this->table.find(tokenString);
     if (subject == this->table.end()) return NULL;
+    std::cout << "lookup did not return null!\n";
     Record *found = new Record(subject->first, subject->second);
     return found;
 }
@@ -60,6 +61,7 @@ SymbolTable::SymbolTable(void) {
         ".",
         "WHILE",
         "IF",
+        "THEN",
         "ELSE",
         "RETURN",
         "PROGRAM",
@@ -68,7 +70,7 @@ SymbolTable::SymbolTable(void) {
         "GLOBAL",
         "VARIABLE",
         "TYPE",
-        "PROC",
+        "PROCEDURE",
         "END",
         "FOR",
         "ASSIGN",
@@ -91,10 +93,10 @@ SymbolTable::SymbolTable(void) {
         T_DIVIDE,
         T_COMMA,
         T_COLON,
-        T_LBRACKET,
-        T_RBRACKET,
         T_LBRACE,
         T_RBRACE,
+        T_LBRACKET,
+        T_RBRACKET,
         T_AND,
         T_OR,
         T_ADD,
@@ -104,6 +106,7 @@ SymbolTable::SymbolTable(void) {
         T_PERIOD,
         T_WHILE,
         T_IF,
+        T_THEN,
         T_ELSE,
         T_RETURN,
         T_PROGRAM,

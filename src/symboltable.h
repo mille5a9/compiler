@@ -22,6 +22,7 @@
 
 #define T_WHILE 257 // reserved words
 #define T_IF 258
+#define T_THEN 286
 #define T_ELSE 259
 #define T_RETURN 260
 #define T_PROGRAM 261
@@ -65,34 +66,7 @@ struct Record {
     int tokenType;
 };
 
-// custom hash function for the unordered map, else it will screw up the char arrays
-// this solution is from https://stackoverflow.com/questions/20649864/c-unordered-map-with-char-as-key
-template <class Tp>  
-struct my_equal_to  
-{  
-    bool operator()(const Tp& x, const Tp& y) const  
-    { return strcmp( x, y ) == 0; }  
-};
-
-
-struct Hash_Func{
-    //BKDR hash algorithm
-    int operator()(char * str)const
-    {
-        int seed = 131;//31  131 1313 13131131313 etc//
-        int hash = 0;
-        while(*str)
-        {
-            hash = (hash * seed) + (*str);
-            str ++;
-        }
-
-        return hash & (0x7FFFFFFF);
-    }
-};
-
-typedef std::unordered_map<std::string, unsigned int/*, Hash_Func,  my_equal_to<char*> */> my_unordered_map;
-
+typedef std::unordered_map<std::string, unsigned int> my_unordered_map;
 
 class SymbolTable {
     my_unordered_map table;
