@@ -218,8 +218,8 @@ int Scanner::getNextToken() {
         // store entire word in list of letters
         int next = this->peekScannerDigit();
         while (next != 0) {
-            if (current == '.') numericSubtype = T_FLITERAL;
-            digits.push_back(current);
+            if (next == '.') numericSubtype = T_FLITERAL;
+            digits.push_back(next);
             next = this->peekScannerDigit();
         }
 
