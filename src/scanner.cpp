@@ -65,11 +65,14 @@ int Scanner::getNextToken() {
         case T_COMMA : case T_LBRACKET : case T_RBRACKET : case T_LBRACE : 
         case T_RBRACE : case T_AND : case T_OR : case T_ADD : case T_SUB : 
         case T_PERIOD :
+
             singleCharWord = current;
             this->wordList.push_back(Word(
                 singleCharWord, lineCounter, colCounter, (int)current));
             return current;
+
         case T_DIVIDE :
+
             // the slash could be division or the start of a comment
             if (this->peekScanner('/')) {
                 this->commentFlag = true;
@@ -83,7 +86,9 @@ int Scanner::getNextToken() {
                     singleCharWord, lineCounter, colCounter, (int)current));
             }
             return current;
+
         case T_COLON :
+
             // the colon could be an assignment
             if (this->peekScanner('=')) {
                 this->wordList.push_back(Word(
@@ -95,7 +100,9 @@ int Scanner::getNextToken() {
                     singleCharWord, lineCounter, colCounter, (int)current));
             }
             return current;
+
         case T_MORE :
+
             // the > could be >=
             if (this->peekScanner('=')) {
                 this->wordList.push_back(Word(
@@ -107,7 +114,9 @@ int Scanner::getNextToken() {
                     singleCharWord, lineCounter, colCounter, (int)current));
             }
             return current;
+
         case T_LESS :
+
             // the < could be <=
             if (this->peekScanner('=')) {
                 this->wordList.push_back(Word(
@@ -181,29 +190,22 @@ int Scanner::getNextToken() {
             return current;
         }
         
-        // check for reserved words / used identifiers
-        Record *reserved = this->symbolTable.lookup(entireWord);
+        // check for reserved words, so the Word can have the appropriate tokenType value
+        Record reserved = this->symbolTable.lookup(entireWord);
 
-        if (reserved == NULL) { // must be new identifier
+        if (reserved.tokenType == 0) { // must be identifier
 
-            this->symbolTable.insert(Record(entireWord, T_IDENTIFIER));
-            std::cout << "SCANNER made word for " << entireWord << std::endl;
-
-            // also make the word for this identifier
-            // NOTE:: no scope token yet :shrug:
-            Word identifier = Word(entireWord, lineCounter, colCounter, T_IDENTIFIER);
-            this->wordList.push_back(identifier);
-
+            // make the word for this identifier
+            bool isProc = false;
+            if (this->wordList.back().tokenString == "PROCEDURE") isProc = true;
+            this->wordList.push_back(wordFactory.createIdWord(entireWord, lineCounter, colCounter, T_IDENTIFIER, isProc));
         }
         else {
 
-            // make word for known token
-            std::cout << "writing tokenString: " << reserved->tokenString << "\n";
-
+            // make word for reserved word/punctuation
             Word knownToken = Word(
-                reserved->tokenString, lineCounter, colCounter, reserved->tokenType);
+                reserved.tokenString, lineCounter, colCounter, reserved.tokenType);
             this->wordList.push_back(knownToken);
-            
         }
 
         return current;
@@ -233,8 +235,7 @@ int Scanner::getNextToken() {
         }
 
         // tokenize this literal
-        Word numLiteral = Word(entireWord, lineCounter, colCounter, numericSubtype);
-        this->wordList.push_back(numLiteral);
+        this->wordList.push_back(wordFactory.createDigitWord(entireWord, lineCounter, colCounter, numericSubtype));
         return current;
     }
 
@@ -267,8 +268,7 @@ int Scanner::getNextToken() {
         }
         
         // tokenize this literal
-        Word stringLiteral = Word(entireWord, lineCounter, colCounter, T_SLITERAL);
-        this->wordList.push_back(stringLiteral);
+        this->wordList.push_back(wordFactory.createStringWord(entireWord, lineCounter, colCounter, T_SLITERAL));
     }
 
     // EOF is handled by setting current to T_EOF in advanceScanner()
@@ -331,7 +331,6 @@ void Scanner::writeWordList() {
     while (copyWordList.empty() == false) {
         Word frontWord = copyWordList.front();
         wordsOut << frontWord.tokenType << "," << frontWord.tokenString << "\n";
-        //std::cout << "<" << frontWord.tokenType << "," << frontWord.tokenString << ">\n";
         copyWordList.pop_front();
     }
     wordsOut.close();
@@ -347,7 +346,7 @@ SymbolTable Scanner::getSymbolTable() {
     return this->symbolTable;
 }
 
-Record *Scanner::symbolLookup(std::string tokenString) {
+Record Scanner::symbolLookup(std::string tokenString) {
     return this->symbolTable.lookup(tokenString);
 }
 

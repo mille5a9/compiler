@@ -1,10 +1,12 @@
 #ifndef SCANNER_H
 #define SCANNER_H
 
-#include <sys/stat.h>
+#include <cstring>
 #include <fstream>
 #include <list>
-#include <cstring>
+#include <memory>
+#include <sys/stat.h>
+#include <utility>
 
 // time-efficient check for file existence
 inline bool fileExists(char *filename) {
@@ -33,7 +35,7 @@ static class Scanner {
         void writeWordList();
         std::list<Word> getWordList();
         SymbolTable getSymbolTable();
-        Record *symbolLookup(std::string tokenString);
+        Record symbolLookup(std::string tokenString);
 } scan;
 
 #endif
