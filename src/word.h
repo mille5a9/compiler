@@ -2,26 +2,55 @@
 #define WORD_H
 
 #include <string>
+#include <list>
 
 struct Word {
     Word() = default;
     Word(std::string name, int lineNum, int colNum,  int type);
     std::string tokenString;
     int tokenType = 0, line, col;
-    // char stringValue[256];
-    // int intValue = 0; // also used for bool
-    // float floatValue = 0.0;
-};
 
-struct DigitWord : Word {
+    // storing the meaning of the word
     int intValue = 0;
     float floatValue = 0.0;
-    DigitWord(std::string name, int lineNum, int colNum,  int type);
+    bool isProcIdentifier; // otherwise it's a variable
+    std::string strValue = "";
+    std::list<int> arrayInt;
+    std::list<float> arrayFloat;
+    std::list<std::string> arrayString;
+    std::list<bool> arrayBool;
+
+    // equality comparison for hash table
+    bool operator==(const Word &other) const {
+        return (tokenString == other.tokenString
+        && line == other.line
+        && col == other.col);
+    }
 };
 
-struct StringWord : Word {
-    std::string strValue = "";
-    StringWord(std::string name, int lineNum, int colNum,  int type);
+// https://stackoverflow.com/questions/5889238/why-is-xor-the-default-way-to-combine-hashes
+size_t hash_combine( size_t lhs, size_t rhs ) {
+    lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+    return lhs;
+}
+
+struct std::hash<Word> {
+    std::size_t operator() (const Word &word) const {
+        std::size_t h1 = std::hash<std::string>{}(word.tokenString);
+        std::size_t h2 = std::hash<int>{}(word.line);
+        std::size_t h3 = std::hash<int>{}(word.col);
+        h1 = hash_combine(h1, h2);
+        return hash_combine(h1, h3);
+    }
 };
+
+// factory to handle making different types of words
+static class WordFactory {
+    public:
+        Word createGenericWord(std::string name, int lineNum, int colNum,  int type);
+        Word createDigitWord(std::string name, int lineNum, int colNum,  int type);
+        Word createStringWord(std::string name, int lineNum, int colNum,  int type);
+        Word createIdWord(std::string name, int lineNum, int colNum,  int type, bool isProc);
+} wordFactory;
 
 #endif
