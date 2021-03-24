@@ -2,8 +2,6 @@
 
 #include "parser.h"
 #include "scanner.h"
-#include "word.h"
-#include "symboltable.h"
 
 int main(int argc, char **argv) {
     // Check arg count
