@@ -244,6 +244,9 @@ Node *Parser::procHeader() {
     Node *procedureHeader = new Node(E_PROCHEAD);
     procedureHeader->addChild(this->follow("PROCEDURE"));
     procedureHeader->addChild(this->follow(T_IDENTIFIER));
+    Word newScope = procedureHeader->getChildren().back()->getTerminal(); // proc ID becomes basis for new scope
+    this->scopes.push(newScope); // add scope to stack
+    this->symbolTable.createScope(newScope); // make scope in symbolTable
     procedureHeader->addChild(this->follow(":"));
     procedureHeader->addChild(this->typeMark());
     procedureHeader->addChild(this->follow("("));
@@ -284,6 +287,10 @@ Node *Parser::procBody() {
     
     procBody->addChild(this->follow("END"));
     procBody->addChild(this->follow("PROCEDURE"));
+
+    Word oldScope = this->scopes.top();
+    this->scopes.pop(); // delete the most local scope, which will always be the proc that just ended
+    this->symbolTable.removeScope(oldScope);
 
     return procBody;
 
