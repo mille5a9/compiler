@@ -92,7 +92,7 @@ void SymbolTable::removeScope(Word scope) {
 // }
 
 // instantiate global scope, and insert reserved words
-SymbolTable::SymbolTable(void) {
+SymbolTable::SymbolTable() {
     symbol_map table = symbol_map();
 
     std::string reservedStrings[] = {
@@ -187,7 +187,7 @@ SymbolTable::SymbolTable(void) {
 
     int reservedCount = sizeof(reservedTypes) / sizeof(reservedTypes[0]);
     for (int i = 0; i < reservedCount; i++) {
-        this->insert(Record(reservedStrings[i], reservedTypes[i]));
+        table[reservedStrings[i]] = Record(reservedStrings[i], reservedTypes[i]);
     }
 
     std::pair<Word, symbol_map> entry(Word("GLOBAL", 0, 0, 0), table);

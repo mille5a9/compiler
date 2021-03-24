@@ -8,7 +8,7 @@ struct Word {
     Word() = default;
     Word(std::string name, int lineNum, int colNum,  int type);
     std::string tokenString;
-    int tokenType = 0, line, col;
+    int tokenType = 0, line = 0, col = 0;
 
     // storing the meaning of the word
     int intValue = 0;
@@ -28,19 +28,21 @@ struct Word {
     }
 };
 
-// https://stackoverflow.com/questions/5889238/why-is-xor-the-default-way-to-combine-hashes
-size_t hash_combine( size_t lhs, size_t rhs ) {
-    lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-    return lhs;
+namespace wordhash {
+    // https://stackoverflow.com/questions/5889238/why-is-xor-the-default-way-to-combine-hashes
+    inline size_t hash_combine( size_t lhs, size_t rhs ) {
+        lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+        return lhs;
+    }
 }
 
-struct std::hash<Word> {
+struct WordHash {
     std::size_t operator() (const Word &word) const {
         std::size_t h1 = std::hash<std::string>{}(word.tokenString);
         std::size_t h2 = std::hash<int>{}(word.line);
         std::size_t h3 = std::hash<int>{}(word.col);
-        h1 = hash_combine(h1, h2);
-        return hash_combine(h1, h3);
+        h1 = wordhash::hash_combine(h1, h2);
+        return wordhash::hash_combine(h1, h3);
     }
 };
 

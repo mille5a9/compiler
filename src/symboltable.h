@@ -72,7 +72,7 @@ struct Record {
 };
 
 typedef std::unordered_map<std::string, Record> symbol_map;
-typedef std::unordered_map<Word, symbol_map> symbol_book;
+typedef std::unordered_map<Word, symbol_map, WordHash> symbol_book;
 
 class SymbolTable {
     // dictionary of different symbol tables with scope key
