@@ -1,8 +1,10 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <list>
 #include <fstream>
+#include <list>
+#include <memory>
+#include <type_traits>
 #include "symboltable.h"
 #include "word.h"
 
@@ -81,6 +83,7 @@ class ParserTree {
 
 class Parser {
     std::list<Word> wordList;
+    std::stack<Word> scopes;
     ParserTree tree;
     SymbolTable symbolTable;
     
@@ -108,22 +111,22 @@ class Parser {
     Node *varDeclaration();
     Node *typeMark();
     Node *statement();
-    Node *procCall(bool skipId = false); // this is a lookahead, thumbs down
+    Node *procCall();
     Node *assignStatement();
     Node *destination();
     Node *ifStatement();
     Node *loopStatement();
     Node *returnStatement();
     Node *expression();
-    Node *expressionPrime(); //LRE
+    Node *expressionPrime(); // Left Recursion Elimination Helper
     Node *mathOperation();
-    Node *mathOperationPrime(); //LRE
+    Node *mathOperationPrime(); //LRE Helper
     Node *relation();
-    Node *relationPrime(); //LRE
+    Node *relationPrime(); //LRE Helper
     Node *term();
-    Node *termPrime(); //LRE
+    Node *termPrime(); //LRE Helper
     Node *factor();
-    Node *name(bool skipId = false);
+    Node *name();
     Node *argList();
 
     public:

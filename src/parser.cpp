@@ -45,8 +45,12 @@ Parser::Parser(std::list<Word> words, SymbolTable table) {
     this->wordList = words;
     this->symbolTable = table;
     this->tree = ParserTree();
+
+    // start with global scope in the scopes stack
+    this->scopes.push(Word("GLOBAL", 0, 0, 0));
 }
 
+// Looks at the next token in the stream
 int Parser::peek() {
     std::cout << "Entered peek()\n";
     if (this->wordList.empty()) return T_EOF;
@@ -70,6 +74,7 @@ bool Parser::match(int term) {
 
 // alerts user of error in the grammar
 void Parser::parsingError(std::string expected) {
+
     std::cout << "Entered parsingError(string)\n";
     Word next = this->wordList.front();
     std::cout << "Error (" << next.line << ", " << next.col << "): "
@@ -80,6 +85,7 @@ void Parser::parsingError(std::string expected) {
 
 // alerts of error without suggestion
 void Parser::parsingError() {
+
     std::cout << "Entered parsingError()\n";
     Word next = this->wordList.front();
     std::cout << "Error (" << next.line << ", " << next.col << "): "
@@ -88,42 +94,45 @@ void Parser::parsingError() {
 }
 
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
+// This overload is used for reserved words and punctuation
 Node *Parser::follow(std::string expectedTokenString) {
+    
     std::cout << "Entered follow(string)\n";
-    Record *expected = this->symbolTable.lookup(expectedTokenString);
-    if (this->match(expected->tokenType)) return new Node(this->yoink());
+    Record expected = this->symbolTable.lookup(expectedTokenString); // uses the global-only overload
+    if (this->match(expected.tokenType)) return new Node(this->yoink());
     else {
-        this->parsingError(expected->tokenString);
-        return NULL; // not sure if this is the best way to handle the failed case
+        this->parsingError(expected.tokenString);
+        return new Node(); // not sure if this is the best way to handle the failed case
     }
 }
 
 // Finds a match for an identifier
 Node *Parser::follow(int expectedType) {
-    std::cout << "Entered follow(int, int)\n";
+
     int next = this->peek();
+    Word nextWord = this->wordList.front();
 
     if (next == expectedType) {
-        std::cout << "matched next in follow(int, int)\n";
-        std::cout << this->wordList.front().tokenString << std::endl;
-        Record *expected = this->symbolTable.lookup(this->wordList.front().tokenString);
-        std::cout << "looked up record\n";
-        if (expected == NULL) return new Node();
-        else if (this->match(expected->tokenType)) return new Node(this->yoink());
-        else {
-            this->parsingError(expected->tokenString);
-            return new Node();; // not sure if this is the best way to handle the failed case
+
+        Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes);
+
+        // if id isn't in symbol table, add it
+        if (expected.tokenType == 0) {
+            this->symbolTable.insert(Record(nextWord.tokenString, nextWord.tokenType, this->scopes.top()));
         }
+        return new Node(this->yoink());
+
     }
     else {
         this->parsingError();
-        return new Node();; // not sure if this is the best way to handle the failed case
+        return new Node(); // not sure if this is the best way to handle the failed case
     }
 }
 
 // Finds a match for a literal, different from an identifier because
 // it will not reference the symbol table
 Node *Parser::followLiteral(int literalType) {
+
     std::cout << "Entered followLiteral(int)\n";
     if (this->peek() == literalType) {
         return new Node(this->yoink());
@@ -376,10 +385,10 @@ Node *Parser::statement() {
 }
 
 // identifier, left paren terminal, expression, right paren terminal
-Node *Parser::procCall(bool skipId) {
+Node *Parser::procCall() {
     std::cout << "Entered procCall()\n";
     Node *procCall = new Node(E_PROCCALL);
-    if (!skipId) procCall->addChild(this->follow(T_IDENTIFIER));
+    procCall->addChild(this->follow(T_IDENTIFIER));
     procCall->addChild(this->follow("("));
     procCall->addChild(this->argList());
     procCall->addChild(this->follow(")"));
@@ -644,13 +653,12 @@ Node *Parser::factor() {
 
             // this if filters out numbers that hit the T_SUB case
             if (this->peek() == T_IDENTIFIER) { 
-                factor->addChild(this->follow(T_IDENTIFIER));
-
-                if (this->peek() == T_LPAREN) {// specifies procCall
-                    factor->addChild(this->procCall(true));
+                Word nextWord = this->wordList.front();
+                if (nextWord.isProcIdentifier) {
+                    factor->addChild(this->procCall());
                 }
-                else { // assume <name>, call the id skip overload
-                    factor->addChild(this->name(true));
+                else { // represents a name (variable) rather than a procedure
+                    factor->addChild(this->name());
                 }
                 return factor;
             }
@@ -677,11 +685,11 @@ Node *Parser::factor() {
 
 
 // identifier, {"lbracket", expression, "rbracket"} <- optional
-Node *Parser::name(bool skipId) {
+Node *Parser::name() {
     std::cout << "Entered name()\n";
     Node *name = new Node(E_NAME);
 
-    if (!skipId) name->addChild(this->follow(T_IDENTIFIER));
+    name->addChild(this->follow(T_IDENTIFIER));
 
     // optional left bracket denoting expression for index
     if (this->peek() == T_LBRACKET) {
