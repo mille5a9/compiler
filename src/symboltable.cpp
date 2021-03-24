@@ -1,29 +1,84 @@
 #include "symboltable.h"
-#include <utility>
 #include <algorithm>
-#include <string>
+#include <utility>
 
 // search for a token name and a pointer to its entry
-Record* SymbolTable::lookup(std::string tokenString) {
-    my_unordered_map::const_iterator subject =
-        this->table.find(tokenString);
-    if (subject == this->table.end()) return NULL;
-    std::cout << "lookup did not return null!\n";
-    Record *found = new Record(subject->first, subject->second);
+// takes the scope stack from the parser and locates records
+Record SymbolTable::lookup(std::string tokenString, std::stack<Word> scopes) {
+    size_t scopesCount = scopes.size();
+    symbol_book::const_iterator domain;
+    symbol_map::const_iterator subject;
+    Record found;
+
+    // search the scope heirarchy starting from most local
+    for (int i = 0; i < scopesCount; i++) {
+        domain = this->tables.find(scopes.top());
+        scopes.pop();
+        if (domain == this->tables.end()) continue; // scope doesn't exist?
+
+        // scope found, locate record
+        subject = domain->second.find(tokenString);
+        if (subject == domain->second.end()) continue; // no match, next scope
+        found = subject->second;
+    }
+
+    return found;
+}
+
+// lookup overload for a single scope string instead of a stack of scopes
+// helpful for SymbolTable::insert where only concerned with the local scope
+Record SymbolTable::lookup(std::string tokenString, Word scope) {
+    symbol_book::const_iterator domain;
+    symbol_map::const_iterator subject;
+    Record found;
+
+    domain = this->tables.find(scope);
+    if (domain == this->tables.end()) return Record(); // scope doesn't exist?
+
+    // scope found, locate record
+    subject = domain->second.find(tokenString);
+    if (subject == domain->second.end()) return Record(); // no match, next scope
+    found = subject->second;
+
+    std::cout << tokenString << " record lookup successful in " << scope.tokenString << " scope\n";
     return found;
 }
 
 // prints all contents (for debugging purposes)
 void SymbolTable::print() {
-    std::for_each(this->table.begin(), this->table.end(), [](std::pair<std::string, int> p) {
-        std::cout << "{" << p.first << ": " << p.second << "}\n";
+    std::for_each(this->tables.begin(), this->tables.end(), [](std::pair<Word, symbol_map> sm) {
+
+        std::for_each(sm.second.begin(), sm.second.end(), [](std::pair<std::string, Record> r) {
+
+            std::cout << r.second.scope.tokenString << ": " << "{" << r.first << ": " << r.second.tokenType << "}\n";
+        });
     });
 }
 
-// insert name into symbol table
+// insert name into symbol table at record's scope, if it isn't already there
 void SymbolTable::insert(Record tokenRecord) {
-    //auto token = std::make_pair(tokenRecord.tokenString, tokenRecord.tokenType);
-    this->table[tokenRecord.tokenString] = tokenRecord.tokenType;
+    symbol_book::const_iterator domain = this->tables.find(tokenRecord.scope);
+    if (domain == this->tables.end()) return; // scope doesn't exist
+
+    symbol_map table = domain->second;
+    table[tokenRecord.tokenString] = tokenRecord;
+}
+
+// create a new scope during parsing (if it doesn't already exist)
+void SymbolTable::createScope(Word scope) {
+    symbol_book::const_iterator domain = this->tables.find(scope);
+    if (domain == this->tables.end()) { // scope doesn't exist already
+        symbol_map table = symbol_map();
+        std::pair<Word, symbol_map> entry(scope, table);
+        this->tables.insert(entry);
+    }
+}
+
+// remove a new scope during parsing (if it exists)
+void SymbolTable::removeScope(Word scope) {
+    symbol_book::const_iterator domain = this->tables.find(scope);
+    if (domain == this->tables.end()) return; // scope doesn't exist
+    this->tables.erase(domain);
 }
 
 // associate attribute with another entry
@@ -36,9 +91,9 @@ void SymbolTable::insert(Record tokenRecord) {
     
 // }
 
-// insert reserved words into symbol table
+// instantiate global scope, and insert reserved words
 SymbolTable::SymbolTable(void) {
-    this->table = my_unordered_map();
+    symbol_map table = symbol_map();
 
     std::string reservedStrings[] = {
         ";",
@@ -134,4 +189,7 @@ SymbolTable::SymbolTable(void) {
     for (int i = 0; i < reservedCount; i++) {
         this->insert(Record(reservedStrings[i], reservedTypes[i]));
     }
+
+    std::pair<Word, symbol_map> entry(Word("GLOBAL", 0, 0, 0), table);
+    this->tables.insert(entry);
 }

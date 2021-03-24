@@ -54,35 +54,44 @@
 
 #include <unordered_map>
 #include <iostream>
-#include <string.h>
+#include <stack>
+#include <string>
+#include "word.h"
 
+// contains symbol data: token string and type, scope name
 struct Record {
     Record() = default;
-    Record(std::string name, int type) {
+    Record(std::string name, int type, Word scopeWord = Word("GLOBAL", 0, 0, 0)) {
         this->tokenString = name;
         this->tokenType = type;
+        this->scope = scopeWord;
     }
     std::string tokenString;
+    Word scope;
     int tokenType;
 };
 
-typedef std::unordered_map<std::string, unsigned int> my_unordered_map;
+typedef std::unordered_map<std::string, Record> symbol_map;
+typedef std::unordered_map<Word, symbol_map> symbol_book;
 
 class SymbolTable {
-    my_unordered_map table;
+    // dictionary of different symbol tables with scope key
+    symbol_book tables;
+
     public:
 
         // insert reserved words into symbol table
         SymbolTable();
 
         // remove all entries and free storage
-        inline void free() { table.clear(); };
+        inline void free() { tables.clear(); };
 
         // prints all contents (for debugging purposes)
         void print();
 
-        // search for a token name and a pointer to its entry
-        Record *lookup(std::string tokenString);
+        // search scopes for a token name and a pointer to its entry
+        Record lookup(std::string tokenString, std::stack<Word> scope);
+        Record lookup(std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0));
 
         // insert name into symbol table
         void insert(Record tokenRecord);
@@ -92,6 +101,10 @@ class SymbolTable {
 
         // retrieve associated attribute
         char *getAttribute();
+
+        // create a new scope / remove an existing scope at parse time
+        void createScope(Word scope);
+        void removeScope(Word scope);
 };
 
 #endif
