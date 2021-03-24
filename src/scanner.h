@@ -22,6 +22,7 @@ static class Scanner {
     std::string codeStream;
     int codeLength;
     std::list<Word> wordList;
+    std::list<std::string> procList;
     int advanceScanner();
     bool peekScanner(char check);
     int peekScannerAlpha();

@@ -1,5 +1,6 @@
 //  recursive descent compiler by Andrew Miller
 
+#include <algorithm>
 #include "parser.h"
 #include "scanner.h"
 #include "word.h"
@@ -25,6 +26,17 @@ bool Scanner::init(char *filename, std::string contents) {
 
     // populate symbol table with reserved words
     symbolTable = SymbolTable();
+    this->procList = {
+        "GETBOOL",
+        "GETINTEGER",
+        "GETFLOAT",
+        "GETSTRING",
+        "PUTBOOL",
+        "PUTINTEGER",
+        "PUTFLOAT",
+        "PUTSTRING",
+        "SQRT"
+    };
 
     // assign code text to codestream array
     this->codeStream = contents;
@@ -197,7 +209,17 @@ int Scanner::getNextToken() {
 
             // make the word for this identifier
             bool isProc = false;
-            if (this->wordList.back().tokenString == "PROCEDURE") isProc = true;
+
+            // check if it is a proc in a declaration or is a proc that was previously declared
+            // this step is a huge favor for the parser later
+            if (this->wordList.back().tokenString == "PROCEDURE") {
+                isProc = true;
+                procList.push_back(entireWord);
+            } else {
+                std::list<std::string>::iterator it = std::find(procList.begin(), procList.end(), entireWord);
+                if (it != procList.end()) isProc = true;
+            }
+
             this->wordList.push_back(wordFactory.createIdWord(entireWord, lineCounter, colCounter, T_IDENTIFIER, isProc));
         }
         else {
