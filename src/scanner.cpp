@@ -43,7 +43,7 @@ bool Scanner::init(char *filename, std::string contents) {
     this->codeLength = contents.length();
     std::cout << "codeStream contents:\n" << this->codeStream << std::endl;
     std::cout << "symbolTable contents:\n";
-    symbolTable.print();
+    symbolTable.print("");
     return true;
 }
 
@@ -225,8 +225,13 @@ int Scanner::getNextToken() {
         else {
 
             // make word for reserved word/punctuation
-            Word knownToken = Word(
-                reserved.tokenString, lineCounter, colCounter, reserved.tokenType);
+            bool isProc = false;
+            
+            // could be a built-in function, if so must mark as a procedure to avoid lookaheads in the parser
+            std::list<std::string>::iterator it = std::find(procList.begin(), procList.end(), entireWord);
+            if (it != procList.end()) isProc = true;
+            Word knownToken = wordFactory.createIdWord(
+                reserved.tokenString, lineCounter, colCounter, reserved.tokenType, isProc);
             this->wordList.push_back(knownToken);
         }
 

@@ -47,12 +47,11 @@ struct WordHash {
 };
 
 // factory to handle making different types of words
-static class WordFactory {
-    public:
-        Word createGenericWord(std::string name, int lineNum, int colNum,  int type);
-        Word createDigitWord(std::string name, int lineNum, int colNum,  int type);
-        Word createStringWord(std::string name, int lineNum, int colNum,  int type);
-        Word createIdWord(std::string name, int lineNum, int colNum,  int type, bool isProc);
+static struct WordFactory {
+    Word createGenericWord(std::string name, int lineNum, int colNum,  int type);
+    Word createDigitWord(std::string name, int lineNum, int colNum,  int type);
+    Word createStringWord(std::string name, int lineNum, int colNum,  int type);
+    Word createIdWord(std::string name, int lineNum, int colNum,  int type, bool isProc);
 } wordFactory;
 
 #endif

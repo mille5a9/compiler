@@ -68,7 +68,7 @@ struct Record {
     }
     std::string tokenString;
     Word scope;
-    int tokenType;
+    int tokenType = 0;
 };
 
 typedef std::unordered_map<std::string, Record> symbol_map;
@@ -87,7 +87,7 @@ class SymbolTable {
         inline void free() { tables.clear(); };
 
         // prints all contents (for debugging purposes)
-        void print();
+        void print(std::string localScope);
 
         // search scopes for a token name and a pointer to its entry
         Record lookup(std::string tokenString, std::stack<Word> scope);

@@ -45,8 +45,13 @@ Record SymbolTable::lookup(std::string tokenString, Word scope) {
 }
 
 // prints all contents (for debugging purposes)
-void SymbolTable::print() {
+void SymbolTable::print(std::string localScope) {
+    std::cout << "Current local scope is " << localScope << std::endl;
+
     std::for_each(this->tables.begin(), this->tables.end(), [](std::pair<Word, symbol_map> sm) {
+
+        std::cout << "Iterating over scope: " << sm.first.tokenString << "("
+            << sm.first.line << "," << sm.first.col << ")\n";
 
         std::for_each(sm.second.begin(), sm.second.end(), [](std::pair<std::string, Record> r) {
 
@@ -57,20 +62,25 @@ void SymbolTable::print() {
 
 // insert name into symbol table at record's scope, if it isn't already there
 void SymbolTable::insert(Record tokenRecord) {
+    std::cout << "inserting symbol " << tokenRecord.tokenString << " at scope " << tokenRecord.scope.tokenString << "\n";
+
     symbol_book::const_iterator domain = this->tables.find(tokenRecord.scope);
     if (domain == this->tables.end()) return; // scope doesn't exist
 
-    symbol_map table = domain->second;
-    table[tokenRecord.tokenString] = tokenRecord;
+    std::cout << "scope found...\n";
+
+    //symbol_map &table = domain->second;
+    this->tables[tokenRecord.scope][tokenRecord.tokenString] = tokenRecord;
 }
 
 // create a new scope during parsing (if it doesn't already exist)
 void SymbolTable::createScope(Word scope) {
+    std::cout << "CREATING NEW SCOPE RIGHT HERE LALALALALALALALALALALALA\n";
     symbol_book::const_iterator domain = this->tables.find(scope);
     if (domain == this->tables.end()) { // scope doesn't exist already
+        std::cout << "LINE 74 in createScope\n";
         symbol_map table = symbol_map();
-        std::pair<Word, symbol_map> entry(scope, table);
-        this->tables.insert(entry);
+        this->tables[scope] = table;
     }
 }
 
@@ -137,7 +147,16 @@ SymbolTable::SymbolTable() {
         "INTEGER",
         "FLOAT",
         "STRING",
-        "BOOL"
+        "BOOL",
+        "GETBOOL",
+        "GETINTEGER",
+        "GETFLOAT",
+        "GETSTRING",
+        "PUTBOOL",
+        "PUTINTEGER",
+        "PUTFLOAT",
+        "PUTSTRING",
+        "SQRT"
     };
 
     int reservedTypes[] = {
@@ -182,7 +201,16 @@ SymbolTable::SymbolTable() {
         T_INTEGER,
         T_FLOAT,
         T_STRING,
-        T_BOOL
+        T_BOOL,
+        T_IDENTIFIER, // builtin functions
+        T_IDENTIFIER,
+        T_IDENTIFIER,
+        T_IDENTIFIER,
+        T_IDENTIFIER,
+        T_IDENTIFIER,
+        T_IDENTIFIER,
+        T_IDENTIFIER,
+        T_IDENTIFIER
     };
 
     int reservedCount = sizeof(reservedTypes) / sizeof(reservedTypes[0]);
