@@ -87,15 +87,18 @@ class Parser {
     ParserTree tree;
     SymbolTable symbolTable;
     
-    int peek();
+    // int peek();
+    Word peek() { return this->wordList.front(); }
     Word yoink();
 
     // assessing grammar
     bool match(int term);
     void parsingError(std::string expected);
     void parsingError();
+    void identifierNotFoundError();
     Node *follow(std::string expectedTokenString);
-    Node *follow(int expectedType1);
+    Node *followDeclared();
+    Node *followUndeclared();
     Node *followLiteral(int literalType);
 
     // expression resolvers

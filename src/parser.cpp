@@ -50,13 +50,6 @@ Parser::Parser(std::list<Word> words, SymbolTable table) {
     this->scopes.push(Word("GLOBAL", 0, 0, 0));
 }
 
-// Looks at the next token in the stream
-int Parser::peek() {
-    std::cout << "Entered peek()\n";
-    if (this->wordList.empty()) return T_EOF;
-    return this->wordList.front().tokenType;
-}
-
 // retrieves the front token and then obliterates it from the record
 Word Parser::yoink() {
     std::cout << "Entered yoink()\n";
@@ -68,8 +61,7 @@ Word Parser::yoink() {
 
 // checks a terminal id to make sure next token is that term
 bool Parser::match(int term) {
-    std::cout << "Entered match()\n";
-    return (term == this->peek());
+    return (term == this->peek().tokenType);
 }
 
 // alerts user of error in the grammar
@@ -93,6 +85,13 @@ void Parser::parsingError() {
     this->wordList.pop_front(); // discard mistake, attempt to continue with the parse
 }
 
+// alerts of out of scope or undeclared identifier usage
+void Parser::identifierNotFoundError() {
+    Word next = this->wordList.front();
+    std::cout << "Identifier not declared or is being used out of scope "
+        << "(" << next.line << "," << next.col << ")\n";
+}
+
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 // This overload is used for reserved words and punctuation
 Node *Parser::follow(std::string expectedTokenString) {
@@ -106,22 +105,32 @@ Node *Parser::follow(std::string expectedTokenString) {
     }
 }
 
-// Finds a match for an identifier
-Node *Parser::follow(int expectedType) {
+// Finds a match for an identifier during declaration
+Node *Parser::followUndeclared() {
+    std::cout << "Entered followUndeclared()\n";
+    Word nextWord = this->peek();
 
-    int next = this->peek();
-    Word nextWord = this->wordList.front();
+    Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes);
+    std::cout << "expected type " << nextWord.tokenType << " and got: " << expected.tokenType
+        << std::endl;
 
-    if (next == expectedType) {
-
-        Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes);
-
-        // if id isn't in symbol table, add it
-        if (expected.tokenType == 0) {
-            this->symbolTable.insert(Record(nextWord.tokenString, nextWord.tokenType, this->scopes.top()));
-        }
+    // if id isn't in symbol table, add it
+    if (expected.tokenType == 0) {
+        std::string currentScope = this->scopes.top().tokenString;
+        std::cout << "Inserting " << nextWord.tokenString << " to the symbol table at scope " << currentScope << std::endl;
+        this->symbolTable.insert(Record(nextWord.tokenString, nextWord.tokenType, this->scopes.top()));
         return new Node(this->yoink());
+    }
+}
 
+// Finds a match for a literal, different from an identifier because
+// it will not reference the symbol table
+Node *Parser::followLiteral(int literalType) {
+    Word nextWord = this->peek();
+
+    std::cout << "Entered followLiteral(int)\n";
+    if (nextWord.tokenType == literalType) {
+        return new Node(this->yoink());
     }
     else {
         this->parsingError();
@@ -129,17 +138,20 @@ Node *Parser::follow(int expectedType) {
     }
 }
 
-// Finds a match for a literal, different from an identifier because
-// it will not reference the symbol table
-Node *Parser::followLiteral(int literalType) {
+// Finds an identifier that already exists in the symbol table
+Node *Parser::followDeclared() {
+    Word nextWord = this->peek();
 
-    std::cout << "Entered followLiteral(int)\n";
-    if (this->peek() == literalType) {
-        return new Node(this->yoink());
+    std::cout << "Entered followDeclare()\n";
+    Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes);
+
+    // doesn't exist in symbol table, must be undeclared or out of scope usage of identifier
+    if (expected.tokenType == 0) {
+        this->identifierNotFoundError();
+        return new Node();
     }
     else {
-        this->parsingError();
-        return new Node(); // not sure if this is the best way to handle the failed case
+        return new Node(this->yoink());
     }
 }
 
@@ -154,13 +166,6 @@ void Parser::parse() {
     top->addChild(this->programBody());
     top->addChild(this->follow("."));
 
-    // the code replaced by follow() is right here:
-    // if (this->match(T_PERIOD)) top->addChild(&Node(this->yoink()));
-    // else {
-    //     // parsing error here, expected a period
-    //     this->parsingError(".");
-    // }
-
     // parsing tree now constructed
 }
 
@@ -169,7 +174,7 @@ Node *Parser::programHeader() {
     std::cout << "Entered programHeader()\n";
     Node *programHeader = new Node(E_PROGHEAD);
     programHeader->addChild(this->follow("PROGRAM"));
-    programHeader->addChild(this->follow(T_IDENTIFIER));
+    programHeader->addChild(this->followUndeclared());
     programHeader->addChild(this->follow("IS"));
 
     return programHeader;
@@ -182,26 +187,26 @@ Node *Parser::programBody() {
     Node *programBody = new Node(E_PROGBODY);
 
     // find 0 or more declarations
-    int next = this->peek();
+    int next = this->peek().tokenType;
     while (next == T_GLOBAL || next == T_VARIABLE || next == T_PROC) {
 
         programBody->addChild(this->declaration());
         programBody->addChild(this->follow(";"));
 
-        next = this->peek();
+        next = this->peek().tokenType;
     }
 
     programBody->addChild(this->follow("BEGIN"));
 
     // find 0 or more statements
-     next = this->peek();
+     next = this->peek().tokenType;
     while (next == T_IDENTIFIER || next == T_IF || 
         next == T_FOR || next == T_RETURN) {
 
         programBody->addChild(this->statement());
         programBody->addChild(this->follow(";"));
 
-        next = this->peek();
+        next = this->peek().tokenType;
     }
     
     programBody->addChild(this->follow("END"));
@@ -212,14 +217,16 @@ Node *Parser::programBody() {
 
 // "global" <- optional, procedure_dec or variable_dec
 Node *Parser::declaration() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered declaration()\n";
     Node *declaration = new Node(E_DECLARE);
 
     // optional use of "global"
-    if (this->peek() == T_GLOBAL) declaration->addChild(this->follow("GLOBAL"));
+    if (nextWord.tokenType == T_GLOBAL) declaration->addChild(this->follow("GLOBAL"));
 
     // could be a variable or procedure declaration
-    if (this->peek() == T_PROC) declaration->addChild(this->procDeclaration());
+    if (this->peek().tokenType == T_PROC) declaration->addChild(this->procDeclaration());
     else declaration->addChild(this->varDeclaration());
 
     return declaration;
@@ -243,7 +250,7 @@ Node *Parser::procHeader() {
     std::cout << "Entered procHeader()\n";
     Node *procedureHeader = new Node(E_PROCHEAD);
     procedureHeader->addChild(this->follow("PROCEDURE"));
-    procedureHeader->addChild(this->follow(T_IDENTIFIER));
+    procedureHeader->addChild(this->followUndeclared());
     Word newScope = procedureHeader->getChildren().back()->getTerminal(); // proc ID becomes basis for new scope
     this->scopes.push(newScope); // add scope to stack
     this->symbolTable.createScope(newScope); // make scope in symbolTable
@@ -259,30 +266,31 @@ Node *Parser::procHeader() {
 // 0 or more declarations with semicolon terminal, "begin", 0 or more
 // statements with semicolon terminal, "end", "procedure"
 Node *Parser::procBody() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered procBody()\n";
     Node *procBody = new Node(E_PROCBODY);
 
     // find 0 or more declarations
-    int next = this->peek();
-    while (next == T_GLOBAL || next == T_VARIABLE || next == T_PROC) {
+    while (nextWord.tokenType == T_GLOBAL || nextWord.tokenType == T_VARIABLE || nextWord.tokenType == T_PROC) {
 
         procBody->addChild(this->declaration());
         procBody->addChild(this->follow(";"));
 
-        next = this->peek();
+        nextWord = this->peek();
     }
 
     procBody->addChild(this->follow("BEGIN"));
 
     // find 0 or more statements
-     next = this->peek();
-    while (next == T_IDENTIFIER || next == T_IF || 
-        next == T_FOR || next == T_RETURN) {
+     nextWord = this->peek();
+    while (nextWord.tokenType == T_IDENTIFIER || nextWord.tokenType == T_IF || 
+        nextWord.tokenType == T_FOR || nextWord.tokenType == T_RETURN) {
 
         procBody->addChild(this->statement());
         procBody->addChild(this->follow(";"));
 
-        next = this->peek();
+        nextWord = this->peek();
     }
     
     procBody->addChild(this->follow("END"));
@@ -299,12 +307,14 @@ Node *Parser::procBody() {
 // [parameter and comma terminal and param list] OR 
 // just parameter (no comma)
 Node *Parser::paramList() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered paramList()\n";
     Node *parameterList = new Node(E_PARAMS);
 
     parameterList->addChild(this->param());
 
-    if (this->peek() == T_COMMA) {
+    if (this->peek().tokenType == T_COMMA) {
         parameterList->addChild(this->follow(","));
         parameterList->addChild(this->param());
     }
@@ -323,18 +333,20 @@ Node *Parser::param() {
 // "variable", identifier, colon terminal, type mark, {left bracket terminal,
 // bound (sneaky terminal), right bracket terminal} <- optional
 Node *Parser::varDeclaration() {
+
     std::cout << "Entered varDeclaration()\n";
     Node *varDeclaration(new Node(E_VARDEC));
 
     varDeclaration->addChild(this->follow("VARIABLE"));
-    varDeclaration->addChild(this->follow(T_IDENTIFIER));
+    varDeclaration->addChild(this->followUndeclared());
     varDeclaration->addChild(this->follow(":"));
     varDeclaration->addChild(this->typeMark());
 
     // optional bound declaration
-    if (this->peek() == T_LBRACKET) {
+    if (this->peek().tokenType == T_LBRACKET) {
         varDeclaration->addChild(this->follow("["));
-        varDeclaration->addChild(this->followLiteral(this->peek()));
+        Word nextWord = this->peek();
+        varDeclaration->addChild(this->followLiteral(nextWord.tokenType));
         varDeclaration->addChild(this->follow("]"));
     }
 
@@ -345,9 +357,11 @@ Node *Parser::varDeclaration() {
 // identifier
 // I THINK IDENTIFIER IS IN THIS SPEC BY MISTAKE
 Node *Parser::typeMark() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered typeMark()\n";
     Node *typeMark = new Node(E_TYPEMARK);
-    switch (this->peek()) {
+    switch (nextWord.tokenType) {
         case T_INTEGER :
             typeMark->addChild(this->follow("INTEGER"));
             break;
@@ -369,9 +383,11 @@ Node *Parser::typeMark() {
 
 // 1 of 4 types of statement: assignment, if, loop, return
 Node *Parser::statement() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered statement()\n";
     Node *statement = new Node(E_STMT);
-    switch (this->peek()) {
+    switch (nextWord.tokenType) {
         case T_IDENTIFIER :
             statement->addChild(this->assignStatement());
             break;
@@ -395,7 +411,7 @@ Node *Parser::statement() {
 Node *Parser::procCall() {
     std::cout << "Entered procCall()\n";
     Node *procCall = new Node(E_PROCCALL);
-    procCall->addChild(this->follow(T_IDENTIFIER));
+    procCall->addChild(this->followDeclared()); // proc must exist to call it
     procCall->addChild(this->follow("("));
     procCall->addChild(this->argList());
     procCall->addChild(this->follow(")"));
@@ -417,13 +433,14 @@ Node *Parser::assignStatement() {
 
 // identifier, {left bracket terminal, expression, right bracket terminal} <- optional
 Node *Parser::destination() {
+
     std::cout << "Entered destination()\n";
     Node *destination = new Node(E_DEST);
 
-    destination->addChild(this->follow(T_IDENTIFIER));
+    destination->addChild(this->followDeclared()); // var must exist to be destination
 
     // optional bound expression
-    if (this->peek() == T_LBRACKET) {
+    if (this->peek().tokenType == T_LBRACKET) {
         destination->addChild(this->follow("["));
         destination->addChild(this->expression());
         destination->addChild(this->follow("]"));
@@ -435,8 +452,12 @@ Node *Parser::destination() {
 // "if", "lparen", expression, "rparen", "then", 0 or more [statement, ";"],
 // {"else", 0 or more of [statement, ";"]} <- optional, "end", "if"
 Node *Parser::ifStatement() {
+
     std::cout << "Entered ifStatement()\n";
     Node *ifStatement = new Node(E_IFSTMT);
+
+    // debug math.src by printing symbol table(s) here
+    this->symbolTable.print(this->scopes.top().tokenString);
 
     ifStatement->addChild(this->follow("IF"));
     ifStatement->addChild(this->follow("("));
@@ -444,26 +465,26 @@ Node *Parser::ifStatement() {
     ifStatement->addChild(this->follow(")"));
     ifStatement->addChild(this->follow("THEN"));
 
+    Word nextWord = this->peek();
     // find 0 or more statements
-    int next = this->peek();
-    while (next == T_IDENTIFIER || next == T_IF || 
-        next == T_FOR || next == T_RETURN) {
+    while (nextWord.tokenType == T_IDENTIFIER || nextWord.tokenType == T_IF || 
+        nextWord.tokenType == T_FOR || nextWord.tokenType == T_RETURN) {
         ifStatement->addChild(this->statement());
         ifStatement->addChild(this->follow(";"));
-        next = this->peek();
+        nextWord = this->peek();
     }
 
     // optional else clause
-    if (this->peek() == T_ELSE) {
+    if (nextWord.tokenType == T_ELSE) {
         ifStatement->addChild(this->follow("ELSE"));
 
         // find 0 or more statements again
-        int next = this->peek();
-        while (next == T_IDENTIFIER || next == T_IF || 
-            next == T_FOR || next == T_RETURN) {
+        nextWord = this->peek();
+        while (nextWord.tokenType == T_IDENTIFIER || nextWord.tokenType == T_IF || 
+            nextWord.tokenType == T_FOR || nextWord.tokenType == T_RETURN) {
             ifStatement->addChild(this->statement());
             ifStatement->addChild(this->follow(";"));
-            next = this->peek();
+            nextWord = this->peek();
         }
     }
     
@@ -476,6 +497,7 @@ Node *Parser::ifStatement() {
 // "for", "lparen", assignment statement, ";", expression, "rparen",
 // 0 or more of [statement, ";"], "end", "for"
 Node *Parser::loopStatement() {
+
     std::cout << "Entered loopStatement()\n";
     Node *loopStatement = new Node(E_LPSTMT);
 
@@ -487,12 +509,12 @@ Node *Parser::loopStatement() {
     loopStatement->addChild(this->follow(")"));
     
     // find 0 or more statements
-    int next = this->peek();
-    while (next == T_IDENTIFIER || next == T_IF || 
-        next == T_FOR || next == T_RETURN) {
+    Word nextWord = this->peek();
+    while (nextWord.tokenType == T_IDENTIFIER || nextWord.tokenType == T_IF || 
+        nextWord.tokenType == T_FOR || nextWord.tokenType == T_RETURN) {
         loopStatement->addChild(this->statement());
         loopStatement->addChild(this->follow(";"));
-        next = this->peek();
+        nextWord = this->peek();
     }
 
     loopStatement->addChild(this->follow("END"));
@@ -519,7 +541,7 @@ Node *Parser::expression() {
     Node *expression = new Node(E_EXPR);
 
     // optional not and then a mathop
-    if (this->peek() == T_NOT) expression->addChild(this->follow("NOT"));
+    if (this->peek().tokenType == T_NOT) expression->addChild(this->follow("NOT"));
     expression->addChild(this->mathOperation());
     expression->addChild(this->expressionPrime());
 
@@ -528,15 +550,17 @@ Node *Parser::expression() {
 
 // helper for left recursion elimination
 Node *Parser::expressionPrime() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered expressionPrime()\n";
     Node *expression = new Node(E_EXPR);
 
-    if (this->peek() == T_AND) {
+    if (nextWord.tokenType == T_AND) {
         expression->addChild(this->follow("AND"));
         expression->addChild(this->mathOperation());
         expression->addChild(this->expressionPrime());
     }
-    else if (this->peek() == T_OR) {
+    else if (nextWord.tokenType == T_OR) {
         expression->addChild(this->follow("OR"));
         expression->addChild(this->mathOperation());
         expression->addChild(this->expressionPrime());
@@ -558,10 +582,12 @@ Node *Parser::mathOperation() {
 
 // helper for left recursion elimination
 Node *Parser::mathOperationPrime() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered mathOperationPrime()\n";
     Node *mathOperation = new Node(E_MATHOP);
 
-    switch (this->peek()) {
+    switch (nextWord.tokenType) {
         case T_ADD :
             mathOperation->addChild(this->follow("+"));
             mathOperation->addChild(this->relation());
@@ -588,15 +614,17 @@ Node *Parser::relation() {
 
 // helper for left recursion elimination
 Node *Parser::relationPrime() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered relationPrime()\n";
     Node *relation = new Node(E_REL);
-    int next = this->peek();
 
-    if (next != T_LESS && next != T_MOREEQUIV && next != T_LESSEQUIV &&
-        next != T_MORE && next != T_EQUIV && next != T_NOTEQUIV) 
+    if (nextWord.tokenType != T_LESS && nextWord.tokenType != T_MOREEQUIV 
+        && nextWord.tokenType != T_LESSEQUIV && nextWord.tokenType != T_MORE 
+        && nextWord.tokenType != T_EQUIV && nextWord.tokenType != T_NOTEQUIV) 
         return relation;
 
-    relation->addChild(this->follow(next));
+    relation->addChild(this->follow(nextWord.tokenString));
     relation->addChild(this->term());
     relation->addChild(this->relationPrime());
 
@@ -615,10 +643,12 @@ Node *Parser::term() {
 
 // helper for left recursion elimination
 Node *Parser::termPrime() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered termPrime()\n";
     Node *term = new Node(E_TERM);
 
-    switch (this->peek()) {
+    switch (nextWord.tokenType) {
         case T_MULT :
             term->addChild(this->follow("*"));
             term->addChild(this->factor());
@@ -641,10 +671,12 @@ Node *Parser::termPrime() {
 // true terminal OR
 // false terminal
 Node *Parser::factor() {
+    Word nextWord = this->peek();
+
     std::cout << "Entered factor()\n";
     Node *factor = new Node(E_FACTOR);
 
-    switch (this->peek()) {
+    switch (nextWord.tokenType) {
         case T_LPAREN : // expression in parens
             factor->addChild(this->follow("("));
             factor->addChild(this->expression());
@@ -659,7 +691,7 @@ Node *Parser::factor() {
             // here we use the odd overloads
 
             // this if filters out numbers that hit the T_SUB case
-            if (this->peek() == T_IDENTIFIER) { 
+            if (this->peek().tokenType == T_IDENTIFIER) { 
                 Word nextWord = this->wordList.front();
                 if (nextWord.isProcIdentifier) {
                     factor->addChild(this->procCall());
@@ -671,7 +703,7 @@ Node *Parser::factor() {
             }
             // no break so that the T_SUB case can fall to this next one
         case T_ILITERAL : case T_FLITERAL :
-            factor->addChild(this->followLiteral(this->peek()));
+            factor->addChild(this->followLiteral(this->peek().tokenType));
             break;
 
         case T_SLITERAL :
@@ -696,10 +728,10 @@ Node *Parser::name() {
     std::cout << "Entered name()\n";
     Node *name = new Node(E_NAME);
 
-    name->addChild(this->follow(T_IDENTIFIER));
+    name->addChild(this->followDeclared()); // id must exist to be used
 
     // optional left bracket denoting expression for index
-    if (this->peek() == T_LBRACKET) {
+    if (this->peek().tokenType == T_LBRACKET) {
         name->addChild(this->follow("["));
         name->addChild(this->expression());
         name->addChild(this->follow("]"));
@@ -716,7 +748,7 @@ Node *Parser::argList() {
     argList->addChild(this->expression());
 
     // optional comma to denote recursive call
-    if (this->peek() == T_COMMA) {
+    if (this->peek().tokenType == T_COMMA) {
         argList->addChild(this->follow(","));
         argList->addChild(this->argList());
     }
