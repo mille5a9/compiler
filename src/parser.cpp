@@ -110,7 +110,7 @@ Node *Parser::followUndeclared() {
     std::cout << "Entered followUndeclared()\n";
     Word nextWord = this->peek();
 
-    Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes);
+    Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes.top());
     std::cout << "expected type " << nextWord.tokenType << " and got: " << expected.tokenType
         << std::endl;
 

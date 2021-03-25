@@ -75,10 +75,8 @@ void SymbolTable::insert(Record tokenRecord) {
 
 // create a new scope during parsing (if it doesn't already exist)
 void SymbolTable::createScope(Word scope) {
-    std::cout << "CREATING NEW SCOPE RIGHT HERE LALALALALALALALALALALALA\n";
     symbol_book::const_iterator domain = this->tables.find(scope);
     if (domain == this->tables.end()) { // scope doesn't exist already
-        std::cout << "LINE 74 in createScope\n";
         symbol_map table = symbol_map();
         this->tables[scope] = table;
     }
