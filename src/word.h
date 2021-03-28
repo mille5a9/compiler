@@ -3,22 +3,31 @@
 
 #include <string>
 #include <list>
+#include "symboltable.h"
 
 struct Word {
     Word() = default;
     Word(std::string name, int lineNum, int colNum,  int type);
     std::string tokenString;
-    int tokenType = 0, line = 0, col = 0;
+    int tokenType = 0, line = 0, col = 0, length = 1;
 
-    // storing the meaning of the word
+    // storing the data of the word
     int intValue = 0;
     float floatValue = 0.0;
+    bool boolValue = false;
     bool isProcIdentifier; // otherwise it's a variable
     std::string strValue = "";
     std::list<int> arrayInt;
     std::list<float> arrayFloat;
     std::list<std::string> arrayString;
     std::list<bool> arrayBool;
+
+    // useful info for semantic analysis
+    int length = 1; // only altered by variable declaration bound grammar
+    int dataType = 0; // uses the same constants as the type tokens T_INTEGER, T_BOOL, etc...
+
+
+    Word operator[](size_t index) const;
 
     // equality comparison for hash table
     bool operator==(const Word &other) const {

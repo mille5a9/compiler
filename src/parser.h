@@ -58,6 +58,10 @@ class Node {
         std::list<Node*> getChildren() { return children; }
         int getExprId() { return exprId; }
         Word getTerminal() { return terminal; }
+        Word getChildTerminal(int index) {
+            auto it = std::next(children.begin(), index);
+            return (*it)->getTerminal();
+        }
 
         // setters
         void addChild(Node *x) { children.push_back(x); }
@@ -96,6 +100,9 @@ class Parser {
     void parsingError(std::string expected);
     void parsingError();
     void identifierNotFoundError();
+    void doubleDeclarationError();
+    void arrayBadBoundsError(Node *name);
+    void createSymbol(Word token);
     Node *follow(std::string expectedTokenString);
     Node *followDeclared();
     Node *followUndeclared();

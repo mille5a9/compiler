@@ -11,6 +11,33 @@ Word::Word(std::string name, int lineNum, int colNum, int type) {
     this->col = colNum;
 }
 
+// overload [] to get element at index in the specific list that matches the datatype
+Word Word::operator[](size_t index) const {
+    Word out((*this));
+    switch(dataType) {
+        case T_INTEGER:
+            out.intValue = (*std::next(arrayInt.begin(), index));
+            out.length = 1;
+            out.arrayInt.clear();
+            break;
+        case T_FLOAT:
+            out.floatValue = (*std::next(arrayFloat.begin(), index));
+            out.length = 1;
+            out.arrayFloat.clear();
+            break;
+        case T_STRING:
+            out.strValue = (*std::next(arrayString.begin(), index));
+            out.length = 1;
+            out.arrayString.clear();
+            break;
+        case T_BOOL:
+            out.boolValue = (*std::next(arrayBool.begin(), index));
+            out.length = 1;
+            out.arrayBool.clear();
+    }
+    return out;
+}
+
 Word WordFactory::createGenericWord(std::string name, int lineNum, int colNum, int type) {
     return Word(name, lineNum, colNum, type);
 }

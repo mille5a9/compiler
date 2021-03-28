@@ -92,6 +92,21 @@ void Parser::identifierNotFoundError() {
         << "(" << next.line << "," << next.col << ")\n";
 }
 
+// alerts of a double declaration within the local scope
+void Parser::doubleDeclarationError() {
+    Word next = this->wordList.front();
+    std::cout << next.tokenString << " (" << next.line << "," << next.col
+        << ")" << " was already declared elsewhere in the scope of " 
+        << this->scopes.top().tokenString << std::endl;
+}
+
+// alerts of a non-int array bound arg
+void Parser::arrayBadBoundsError(Node *name) {
+    Word expression = name->getChildTerminal(2);
+    std::cout << "Array bound needs to be an integer. (" << expression.line
+        << "," << expression.col << ")\n";
+}
+
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 // This overload is used for reserved words and punctuation
 Node *Parser::follow(std::string expectedTokenString) {
@@ -114,11 +129,8 @@ Node *Parser::followUndeclared() {
     std::cout << "expected type " << nextWord.tokenType << " and got: " << expected.tokenType
         << std::endl;
 
-    // if id isn't in symbol table, add it
+    // if id isn't in symbol table, yoink it
     if (expected.tokenType == 0) {
-        std::string currentScope = this->scopes.top().tokenString;
-        std::cout << "Inserting " << nextWord.tokenString << " to the symbol table at scope " << currentScope << std::endl;
-        this->symbolTable.insert(Record(nextWord.tokenString, nextWord.tokenType, this->scopes.top()));
         return new Node(this->yoink());
     }
 }
@@ -155,6 +167,21 @@ Node *Parser::followDeclared() {
     }
 }
 
+// Make record in the symbol table
+void Parser::createSymbol(Word token) {
+    // ensure symbol isn't already in the local scope
+    Record expected = this->symbolTable.lookup(token.tokenString, this->scopes.top());
+
+    if (expected.tokenType == 0) {
+        std::string currentScope = this->scopes.top().tokenString;
+        std::cout << "Inserting " << token.tokenString << " to the symbol table at scope " << currentScope << std::endl;
+        this->symbolTable.insert(Record(token.tokenString, token.tokenType, token.length, token.dataType, this->scopes.top()));
+    }
+    else {
+        this->doubleDeclarationError();
+    }
+}
+
 // populates parser tree using wordList and left recursion with single lookahead
 // looks for program header, program body, and then a period
 void Parser::parse() {
@@ -176,6 +203,8 @@ Node *Parser::programHeader() {
     programHeader->addChild(this->follow("PROGRAM"));
     programHeader->addChild(this->followUndeclared());
     programHeader->addChild(this->follow("IS"));
+    
+    this->createSymbol(programHeader->getChildTerminal(1)); // create symbol for identifier
 
     return programHeader;
 }
@@ -251,11 +280,16 @@ Node *Parser::procHeader() {
     Node *procedureHeader = new Node(E_PROCHEAD);
     procedureHeader->addChild(this->follow("PROCEDURE"));
     procedureHeader->addChild(this->followUndeclared());
-    Word newScope = procedureHeader->getChildren().back()->getTerminal(); // proc ID becomes basis for new scope
-    this->scopes.push(newScope); // add scope to stack
-    this->symbolTable.createScope(newScope); // make scope in symbolTable
     procedureHeader->addChild(this->follow(":"));
     procedureHeader->addChild(this->typeMark());
+
+    // intermission for semantic analysis things
+    Word newScope = procedureHeader->getChildTerminal(1); // proc ID becomes basis for new scope
+    newScope.dataType = procedureHeader->getChildTerminal(3).tokenType;
+    this->createSymbol(newScope); // create symbol for identifier
+    this->scopes.push(newScope); // add scope to stack
+    this->symbolTable.createScope(newScope); // make scope in symbolTable
+
     procedureHeader->addChild(this->follow("("));
     procedureHeader->addChild(this->paramList());
     procedureHeader->addChild(this->follow(")"));
@@ -342,13 +376,21 @@ Node *Parser::varDeclaration() {
     varDeclaration->addChild(this->follow(":"));
     varDeclaration->addChild(this->typeMark());
 
+    // semantic analysis: assigning dataType to the identifier word
+    Word newIdentifier = varDeclaration->getChildTerminal(1);
+    newIdentifier.dataType = varDeclaration->getChildTerminal(3).tokenType;
+
     // optional bound declaration
     if (this->peek().tokenType == T_LBRACKET) {
         varDeclaration->addChild(this->follow("["));
         Word nextWord = this->peek();
-        varDeclaration->addChild(this->followLiteral(nextWord.tokenType));
+        varDeclaration->addChild(this->followLiteral(T_ILITERAL));
         varDeclaration->addChild(this->follow("]"));
+
+        // semantic analysis: assign the array length to the identifier word 
+        newIdentifier.length = varDeclaration->getChildTerminal(5).intValue;
     }
+    this->createSymbol(newIdentifier); // create symbol for identifier
 
     return varDeclaration;
 }
@@ -673,6 +715,8 @@ Node *Parser::termPrime() {
 Node *Parser::factor() {
     Word nextWord = this->peek();
 
+    // TODO:: semantic analysis stuff for the negative signs here and then keep on going up the grammar
+
     std::cout << "Entered factor()\n";
     Node *factor = new Node(E_FACTOR);
 
@@ -735,6 +779,17 @@ Node *Parser::name() {
         name->addChild(this->follow("["));
         name->addChild(this->expression());
         name->addChild(this->follow("]"));
+
+        // raise issue if the expression doesn't resolve to an integer
+        if (name->getChildTerminal(2).dataType != T_INTEGER) this->arrayBadBoundsError(name);
+        
+        // assign the meaning of the name to the terminal member of the E_NAME node
+        name->setTerminal(name->getChildTerminal(0)[name->getChildTerminal(2).intValue]);
+    }
+    else {
+        // again, assign the meaning of the name to the terminal member of the E_NAME node
+        // this time for the non-array case
+        name->setTerminal(name->getChildTerminal(0));
     }
 
     return name;

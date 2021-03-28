@@ -66,9 +66,16 @@ struct Record {
         this->tokenType = type;
         this->scope = scopeWord;
     }
+    Record(std::string name, int type, int length, int dataType, Word scopeWord = Word("GLOBAL", 0, 0, 0)) {
+        this->tokenString = name;
+        this->tokenType = type;
+        this->scope = scopeWord;
+        this->tokenLength = length;
+        this->tokenDataType = dataType;
+    }
     std::string tokenString;
     Word scope;
-    int tokenType = 0;
+    int tokenType = 0, tokenLength = 1, tokenDataType = 0;
 };
 
 typedef std::unordered_map<std::string, Record> symbol_map;
