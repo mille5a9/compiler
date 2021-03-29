@@ -110,7 +110,13 @@ void Parser::arrayBadBoundsError(Node *name) {
 // invalid use of operator on a certain type
 void Parser::wrongOperatorError(Word op, Word type) {
     std::cout << "Invalid use of \"" << op.tokenString << "\" operator with operand of type \"" 
-        << type.dataType << "\"";
+        << type.dataType << "\"\n";
+}
+
+// invalid use of operator on two certain types
+void Parser::wrongOperatorError(Word op, Word type1, Word type2) {
+    std::cout << "Invalid use of \"" << op.tokenString << "\" operator with operands of type \"" 
+        << type1.dataType << "\" and \"" << type2.dataType << "\"\n";
 }
 
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
@@ -185,6 +191,78 @@ void Parser::createSymbol(Word token) {
     }
     else {
         this->doubleDeclarationError();
+    }
+}
+
+int Parser::findPrimeGrammarType(Node *gram, Node *lhs) {
+    // master node of these structures has less children
+    if (lhs == NULL) {
+        // if current's Prime node has children, start recursing
+        if (gram->getChildNode(1)->getChildCount() > 0) {
+            return this->findPrimeGrammarType(gram->getChildNode(1), gram->getChildNode(0));
+        }
+        else { // pass type straight through, there's no op at this stage of grammar
+            return gram->getChildTerminal(0).dataType;
+        }
+    }
+    else { // resolve type of Prime phrase from some left-recursion-elimination helper
+        // the rabbit hole goes deeper
+        if (gram->getChildNode(1)->getChildCount() > 0) {
+            Word temp = Word();
+            temp.dataType = this->findPrimeGrammarType(gram->getChildNode(1), gram->getChildNode(0));
+            return this->findResultType(lhs->getTerminal(), 
+                gram->getChildNode(0)->getTerminal(), 
+                temp);
+        }
+        else { // this is the bottom of this part of the tree, resolve type using lhs
+            return this->findResultType(lhs->getTerminal(), gram->getChildNode(0)->getTerminal(), gram->getChildNode(1)->getTerminal());
+        }
+    }
+}
+
+bool Parser::checkValidTypeConversion(Word to, Word from) {
+
+    switch (to.dataType) {
+        case T_INTEGER :
+            if (from.dataType == (T_INTEGER || T_BOOL)) return true;
+            break;
+        case T_FLOAT :
+            if (from.dataType == (T_FLOAT || T_INTEGER)) return true;
+            break;
+        case T_STRING :
+            if (from.dataType == T_STRING) return true;
+            break;
+        case T_BOOL :
+            if (from.dataType == (T_BOOL || T_INTEGER)) return true;
+    }
+    return false;
+}
+
+// checks both operands of an operation and determines the output type
+// produces error for mismatched types
+int Parser::findResultType(Word lhs, Word op, Word rhs) {
+    int firstType = lhs.dataType;
+    int secondType = rhs.dataType;
+
+    // make bad conversions known
+    if (this->checkValidTypeConversion(lhs, rhs) == false) this->wrongOperatorError(op, lhs, rhs);
+
+    switch (op.tokenType) {
+
+        case T_EQUIV : case T_MOREEQUIV : case T_LESSEQUIV : case T_NOTEQUIV :
+        case T_MORE : case T_LESS :
+            return T_BOOL;
+
+        case T_MULT : case T_DIVIDE : case T_ADD : case T_SUB :
+            if (T_INTEGER == (firstType && secondType)) return T_INTEGER;
+            else return T_FLOAT;
+
+        case T_AND : case T_OR : 
+            if (T_INTEGER == (firstType && secondType)) return T_INTEGER;
+            else return T_BOOL;
+        case T_NOT : // if it is T_NOT, lhs is a default word
+            if (secondType == T_INTEGER) return T_INTEGER;
+            else return T_BOOL;
     }
 }
 
@@ -721,8 +799,6 @@ Node *Parser::termPrime() {
 Node *Parser::factor() {
     Word nextWord = this->peek();
 
-    // TODO:: semantic analysis stuff for the negative signs here and then keep on going up the grammar
-
     std::cout << "Entered factor()\n";
     Node *factor = new Node(E_FACTOR);
 
@@ -780,9 +856,8 @@ Node *Parser::factor() {
     if (factor->getChildTerminal(0).tokenType == T_SUB
         && factor->getChildTerminal(1).dataType != (T_INTEGER || T_FLOAT)) {
         this->wrongOperatorError(factor->getChildTerminal(0), factor->getChildTerminal(1));
+        // continue parse, will ignore the negation if it is on a string or bool
     }
-
-
 
     return factor;
 }

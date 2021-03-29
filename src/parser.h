@@ -64,6 +64,10 @@ class Node {
             auto it = std::next(children.begin(), index);
             return (*it)->getTerminal();
         }
+        Node *getChildNode(int index) {
+            auto it = std::next(children.begin(), index);
+            return (*it);
+        }
 
         // setters
         void addChild(Node *x) { 
@@ -108,7 +112,11 @@ class Parser {
     void doubleDeclarationError();
     void arrayBadBoundsError(Node *name);
     void wrongOperatorError(Word op, Word type);
+    void wrongOperatorError(Word op, Word type1, Word type2);
     void createSymbol(Word token);
+    int findPrimeGrammarType(Node *gram, Node *lhs = NULL); // recursive type checker for left-recursion-eliminated parts
+    int findResultType(Word lhs, Word op, Word rhs);
+    bool checkValidTypeConversion(Word to, Word from);
     Node *follow(std::string expectedTokenString);
     Node *followDeclared();
     Node *followUndeclared();
