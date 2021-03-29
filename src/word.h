@@ -15,6 +15,7 @@ struct Word {
     int intValue = 0;
     float floatValue = 0.0;
     bool boolValue = false;
+    bool negated = false; // if the word has a T_SUB in front
     bool isProcIdentifier; // otherwise it's a variable
     std::string strValue = "";
     std::list<int> arrayInt;

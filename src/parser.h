@@ -44,6 +44,7 @@ class Node {
     std::list<Node*> children; // front of this list is the "left" child
     Word terminal;
     int exprId = 0; // terminals have zero
+    int childCount = 0;
 
     public:
         // constructors
@@ -57,6 +58,7 @@ class Node {
         // getters
         std::list<Node*> getChildren() { return children; }
         int getExprId() { return exprId; }
+        int getChildCount() { return childCount; }
         Word getTerminal() { return terminal; }
         Word getChildTerminal(int index) {
             auto it = std::next(children.begin(), index);
@@ -64,7 +66,10 @@ class Node {
         }
 
         // setters
-        void addChild(Node *x) { children.push_back(x); }
+        void addChild(Node *x) { 
+            childCount++;
+            children.push_back(x); 
+        }
         void setTerminal(Word term) { terminal = term; }
 
         // destruction
@@ -102,6 +107,7 @@ class Parser {
     void identifierNotFoundError();
     void doubleDeclarationError();
     void arrayBadBoundsError(Node *name);
+    void wrongOperatorError(Word op, Word type);
     void createSymbol(Word token);
     Node *follow(std::string expectedTokenString);
     Node *followDeclared();

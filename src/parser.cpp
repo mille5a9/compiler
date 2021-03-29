@@ -107,6 +107,12 @@ void Parser::arrayBadBoundsError(Node *name) {
         << "," << expression.col << ")\n";
 }
 
+// invalid use of operator on a certain type
+void Parser::wrongOperatorError(Word op, Word type) {
+    std::cout << "Invalid use of \"" << op.tokenString << "\" operator with operand of type \"" 
+        << type.dataType << "\"";
+}
+
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 // This overload is used for reserved words and punctuation
 Node *Parser::follow(std::string expectedTokenString) {
@@ -743,6 +749,9 @@ Node *Parser::factor() {
                 else { // represents a name (variable) rather than a procedure
                     factor->addChild(this->name());
                 }
+
+                // SA: borrow the dataType from the child word
+                factor->setTerminal(factor->getChildTerminal(factor->getChildCount() - 1));
                 return factor;
             }
             // no break so that the T_SUB case can fall to this next one
@@ -763,6 +772,18 @@ Node *Parser::factor() {
             this->parsingError("a literal or variable name");
 
     }
+
+    // SA: find and set the child type 
+    factor->setTerminal(factor->getChildTerminal(factor->getChildCount() - 1));
+    
+    // check for negative sign and make sure that the type can be negative
+    if (factor->getChildTerminal(0).tokenType == T_SUB
+        && factor->getChildTerminal(1).dataType != (T_INTEGER || T_FLOAT)) {
+        this->wrongOperatorError(factor->getChildTerminal(0), factor->getChildTerminal(1));
+    }
+
+
+
     return factor;
 }
 
