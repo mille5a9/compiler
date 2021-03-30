@@ -64,10 +64,6 @@ class Node {
             auto it = std::next(children.begin(), index);
             return (*it)->getTerminal();
         }
-        Node *getChildNode(int index) {
-            auto it = std::next(children.begin(), index);
-            return (*it);
-        }
 
         // setters
         void addChild(Node *x) { 
@@ -75,6 +71,9 @@ class Node {
             children.push_back(x); 
         }
         void setTerminal(Word term) { terminal = term; }
+        void setDataType(int dataType) { terminal.dataType = dataType; }
+
+        Node *operator[](size_t index) const;
 
         // destruction
         ~Node() { 
@@ -113,6 +112,7 @@ class Parser {
     void arrayBadBoundsError(Node *name);
     void wrongOperatorError(Word op, Word type);
     void wrongOperatorError(Word op, Word type1, Word type2);
+    void wrongTypeResolutionError(int expected, int received, int line, int col);
     void createSymbol(Word token);
     int findPrimeGrammarType(Node *gram, Node *lhs = NULL); // recursive type checker for left-recursion-eliminated parts
     int findResultType(Word lhs, Word op, Word rhs);

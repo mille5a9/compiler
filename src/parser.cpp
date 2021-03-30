@@ -28,6 +28,11 @@ void Node::printNode(std::ofstream &file, int layer) {
     }
 }
 
+Node *Node::operator[](size_t index) const {
+    auto it = std::next(this->children.begin(), index);
+    return (*it);
+}
+
 // outputs the tree to path
 void ParserTree::outputTree(std::string path) {
     std::ofstream treeOut;
@@ -119,6 +124,26 @@ void Parser::wrongOperatorError(Word op, Word type1, Word type2) {
         << type1.dataType << "\" and \"" << type2.dataType << "\"\n";
 }
 
+// something should've resolved to a different type
+void Parser::wrongTypeResolutionError(int expected, int received, int line, int col) {
+    std::string expectedName = "", receivedName = "";
+    switch (expected) {
+        case T_INTEGER : expectedName = "int";
+        case T_FLOAT : expectedName = "float";
+        case T_STRING : expectedName = "string";
+        case T_BOOL : expectedName = "bool";
+    }
+    switch (received) {
+        case T_INTEGER : receivedName = "int";
+        case T_FLOAT : receivedName = "float";
+        case T_STRING : receivedName = "string";
+        case T_BOOL : receivedName = "bool";
+    }
+    std::cout << "(" << line << "," << col 
+        << ") Error: Incorrect type resolution of \"" << receivedName << "\". Expected \""
+        << expectedName << "\".\n";
+}
+
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 // This overload is used for reserved words and punctuation
 Node *Parser::follow(std::string expectedTokenString) {
@@ -175,6 +200,8 @@ Node *Parser::followDeclared() {
         return new Node();
     }
     else {
+        Node *output = new Node(this->yoink());
+        output->getTerminal().procParamTypes = expected.argTypes;
         return new Node(this->yoink());
     }
 }
@@ -194,12 +221,14 @@ void Parser::createSymbol(Word token) {
     }
 }
 
+// finds resulting type of a left-recursion-eliminated subtree
+// used for expression, mathop, relation, and term
 int Parser::findPrimeGrammarType(Node *gram, Node *lhs) {
     // master node of these structures has less children
     if (lhs == NULL) {
         // if current's Prime node has children, start recursing
-        if (gram->getChildNode(1)->getChildCount() > 0) {
-            return this->findPrimeGrammarType(gram->getChildNode(1), gram->getChildNode(0));
+        if ((*gram)[1]->getChildCount() > 0) {
+            return this->findPrimeGrammarType((*gram)[1], (*gram)[0]);
         }
         else { // pass type straight through, there's no op at this stage of grammar
             return gram->getChildTerminal(0).dataType;
@@ -207,15 +236,15 @@ int Parser::findPrimeGrammarType(Node *gram, Node *lhs) {
     }
     else { // resolve type of Prime phrase from some left-recursion-elimination helper
         // the rabbit hole goes deeper
-        if (gram->getChildNode(1)->getChildCount() > 0) {
+        if ((*gram)[1]->getChildCount() > 0) {
             Word temp = Word();
-            temp.dataType = this->findPrimeGrammarType(gram->getChildNode(1), gram->getChildNode(0));
-            return this->findResultType(lhs->getTerminal(), 
-                gram->getChildNode(0)->getTerminal(), 
-                temp);
+            temp.dataType = this->findPrimeGrammarType((*gram)[1], (*gram)[0]);
+            return this->findResultType(lhs->getTerminal(), (*gram)[0]->getTerminal(), temp);
         }
         else { // this is the bottom of this part of the tree, resolve type using lhs
-            return this->findResultType(lhs->getTerminal(), gram->getChildNode(0)->getTerminal(), gram->getChildNode(1)->getTerminal());
+            return this->findResultType(lhs->getTerminal(), 
+                (*gram)[0]->getTerminal(), 
+                (*gram)[1]->getTerminal());
         }
     }
 }
@@ -368,6 +397,7 @@ Node *Parser::procHeader() {
     procedureHeader->addChild(this->typeMark());
 
     // intermission for semantic analysis things
+    Word prevScope = this->scopes.top();
     Word newScope = procedureHeader->getChildTerminal(1); // proc ID becomes basis for new scope
     newScope.dataType = procedureHeader->getChildTerminal(3).tokenType;
     this->createSymbol(newScope); // create symbol for identifier
@@ -377,6 +407,12 @@ Node *Parser::procHeader() {
     procedureHeader->addChild(this->follow("("));
     procedureHeader->addChild(this->paramList());
     procedureHeader->addChild(this->follow(")"));
+    
+    // set paramList's procParamTypes to the argtypes list in the proc Record of the symbol table
+    std::list<int> argTypes = (*procedureHeader)[5]->getTerminal().procParamTypes;
+    this->symbolTable.setArgTypes(argTypes,
+        (*procedureHeader)[1]->getTerminal().tokenString,
+        prevScope);
 
     return procedureHeader;
 }
@@ -425,10 +461,9 @@ Node *Parser::procBody() {
 // [parameter and comma terminal and param list] OR 
 // just parameter (no comma)
 Node *Parser::paramList() {
-    Word nextWord = this->peek();
-
     std::cout << "Entered paramList()\n";
     Node *parameterList = new Node(E_PARAMS);
+    Word terminal;
 
     parameterList->addChild(this->param());
 
@@ -436,6 +471,13 @@ Node *Parser::paramList() {
         parameterList->addChild(this->follow(","));
         parameterList->addChild(this->param());
     }
+
+    Word terminal = Word();
+    int paramCount = (parameterList->getChildCount() + 1) / 2;
+    for (int i = 0; i < paramCount; i++) {
+        terminal.procParamTypes.push_back((*parameterList)[i * 2]->getTerminal().dataType);
+    }
+    parameterList->setTerminal(terminal);
 
     return parameterList;
 }
@@ -504,6 +546,9 @@ Node *Parser::typeMark() {
             this->parsingError("a type specification");
     }
 
+    // SA: assign meaning to the E_TYPEMARK node
+    typeMark->setTerminal((*typeMark)[0]->getTerminal());
+
     return typeMark;
 }
 
@@ -541,6 +586,16 @@ Node *Parser::procCall() {
     procCall->addChild(this->follow("("));
     procCall->addChild(this->argList());
     procCall->addChild(this->follow(")"));
+    
+    // SA: propogate type information
+    procCall->setTerminal((*procCall)[0]->getTerminal());
+
+    // SA: ensure that argList matches argTypes list from the proc id's Record in the table
+    std::list<int> argTypes = (*procCall)[0]->getTerminal().procParamTypes;
+    if (argTypes != (*procCall)[2]->getTerminal().procParamTypes) {
+        std::cout << "(" << procCall->getTerminal().line << "," << procCall->getTerminal().col 
+            << ") Error: arg list types do not match proc header.\n";
+    }
 
     return procCall;
 }
@@ -554,6 +609,13 @@ Node *Parser::assignStatement() {
     assignStatement->addChild(this->follow("ASSIGN"));
     assignStatement->addChild(this->expression());
 
+    // SA: check types
+    Word expression = (*assignStatement)[2]->getTerminal();
+    if (this->checkValidTypeConversion((*assignStatement)[0]->getTerminal(), expression) == false) {
+        this->wrongTypeResolutionError((*assignStatement)[0]->getTerminal().dataType,
+        expression.dataType, expression.line, expression.col);
+    }
+
     return assignStatement;
 }
 
@@ -564,12 +626,27 @@ Node *Parser::destination() {
     Node *destination = new Node(E_DEST);
 
     destination->addChild(this->followDeclared()); // var must exist to be destination
+    destination->setTerminal(destination->getChildTerminal(0));
 
     // optional bound expression
     if (this->peek().tokenType == T_LBRACKET) {
         destination->addChild(this->follow("["));
         destination->addChild(this->expression());
         destination->addChild(this->follow("]"));
+
+        // SA: expression must resolve to an integer, or else what are we doing? :^(
+        Word expression = destination->getChildTerminal(2);
+        if (expression.dataType != T_INTEGER) {
+            this->wrongTypeResolutionError(T_INTEGER, expression.dataType, expression.line, expression.col);
+        }
+        // SA: raise issue if the expression value is larger than the length of the array
+        // also if it is negative
+        if ((expression.intValue >= destination->getTerminal().length) || expression.intValue < 0) {
+            this->arrayBadBoundsError(destination);
+        }
+
+        // adjust E_DEST node terminal to the item from the identifier's list
+        destination->setTerminal(destination->getChildTerminal(0)[destination->getChildTerminal(2).intValue]);
     }
 
     return destination;
@@ -590,6 +667,12 @@ Node *Parser::ifStatement() {
     ifStatement->addChild(this->expression());
     ifStatement->addChild(this->follow(")"));
     ifStatement->addChild(this->follow("THEN"));
+
+    // SA: expression must resolve to bool, or maybe int for casting
+    Word expression = ifStatement->getChildTerminal(2);
+    if (expression.dataType != (T_BOOL || T_INTEGER)) {
+        this->wrongTypeResolutionError(T_BOOL, expression.dataType, expression.line, expression.col);
+    }
 
     Word nextWord = this->peek();
     // find 0 or more statements
@@ -633,6 +716,12 @@ Node *Parser::loopStatement() {
     loopStatement->addChild(this->follow(";"));
     loopStatement->addChild(this->expression());
     loopStatement->addChild(this->follow(")"));
+
+    // SA: expression must resolve to bool, or maybe int for casting
+    Word expression = loopStatement->getChildTerminal(4);
+    if (expression.dataType != (T_BOOL || T_INTEGER)) {
+        this->wrongTypeResolutionError(T_BOOL, expression.dataType, expression.line, expression.col);
+    }
     
     // find 0 or more statements
     Word nextWord = this->peek();
@@ -656,6 +745,9 @@ Node *Parser::returnStatement() {
     returnStatement->addChild(this->follow("RETURN"));
     returnStatement->addChild(this->expression());
 
+    // SA: set node terminal to the result of the expression so procBody() knows the type
+    returnStatement->setTerminal(returnStatement->getChildTerminal(1));
+
     return returnStatement;
 }
 
@@ -670,6 +762,9 @@ Node *Parser::expression() {
     if (this->peek().tokenType == T_NOT) expression->addChild(this->follow("NOT"));
     expression->addChild(this->mathOperation());
     expression->addChild(this->expressionPrime());
+
+    // SA: set mathOperation type to resulting type of it's subtree
+    expression->setDataType(this->findPrimeGrammarType(expression));
 
     return expression;
 }
@@ -703,6 +798,10 @@ Node *Parser::mathOperation() {
     Node *mathOperation = new Node(E_MATHOP);
     mathOperation->addChild(this->relation());
     mathOperation->addChild(this->mathOperationPrime());
+
+    // SA: set mathOperation type to resulting type of it's subtree
+    mathOperation->setDataType(this->findPrimeGrammarType(mathOperation));
+
     return mathOperation;
 }
 
@@ -735,6 +834,10 @@ Node *Parser::relation() {
     Node *relation = new Node(E_REL);
     relation->addChild(this->term());
     relation->addChild(this->relationPrime());
+
+    // SA: set mathOperation type to resulting type of it's subtree
+    relation->setDataType(this->findPrimeGrammarType(relation));
+    
     return relation;
 }
 
@@ -764,6 +867,10 @@ Node *Parser::term() {
     Node *term = new Node(E_TERM);
     term->addChild(this->factor());
     term->addChild(this->termPrime());
+
+    // SA: set mathOperation type to resulting type of it's subtree
+    term->setDataType(this->findPrimeGrammarType(term));
+    
     return term;
 }
 
@@ -816,7 +923,7 @@ Node *Parser::factor() {
             // these two start with the same token, so
             // here we use the odd overloads
 
-            // this if filters out numbers that hit the T_SUB case
+            // this condition filters out numbers that hit the T_SUB case
             if (this->peek().tokenType == T_IDENTIFIER) { 
                 Word nextWord = this->wordList.front();
                 if (nextWord.isProcIdentifier) {
@@ -877,7 +984,10 @@ Node *Parser::name() {
         name->addChild(this->follow("]"));
 
         // raise issue if the expression doesn't resolve to an integer
-        if (name->getChildTerminal(2).dataType != T_INTEGER) this->arrayBadBoundsError(name);
+        Word expression = name->getChildTerminal(2);
+        if (expression.dataType != T_INTEGER) {
+            this->wrongTypeResolutionError(T_INTEGER, expression.dataType, expression.line, expression.col);
+        }
         
         // assign the meaning of the name to the terminal member of the E_NAME node
         name->setTerminal(name->getChildTerminal(0)[name->getChildTerminal(2).intValue]);
@@ -903,6 +1013,14 @@ Node *Parser::argList() {
         argList->addChild(this->follow(","));
         argList->addChild(this->argList());
     }
+    
+    // pass the meaning of this arg list as a list of data types
+    Word terminal = Word();
+    int paramCount = (argList->getChildCount() + 1) / 2;
+    for (int i = 0; i < paramCount; i++) {
+        terminal.procParamTypes.push_back((*argList)[i * 2]->getTerminal().dataType);
+    }
+    argList->setTerminal(terminal);
 
     return argList;
 }

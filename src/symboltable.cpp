@@ -89,10 +89,10 @@ void SymbolTable::removeScope(Word scope) {
     this->tables.erase(domain);
 }
 
-// associate attribute with another entry
-// void SymbolTable::setAttribute() {
-
-// }
+// sets the sequence of parameter data types from a proc header
+void SymbolTable::setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0)) {
+    this->tables[scope][tokenString].argTypes = argTypes;
+}
 
 // retrieve associated attribute
 // char* SymbolTable::getAttribute() {

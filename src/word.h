@@ -22,6 +22,7 @@ struct Word {
     std::list<float> arrayFloat;
     std::list<std::string> arrayString;
     std::list<bool> arrayBool;
+    std::list<int> procParamTypes;
 
     // useful info for semantic analysis
     int length = 1; // only altered by variable declaration bound grammar

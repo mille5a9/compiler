@@ -76,6 +76,7 @@ struct Record {
     std::string tokenString;
     Word scope;
     int tokenType = 0, tokenLength = 1, tokenDataType = 0;
+    std::list<int> argTypes;
 };
 
 typedef std::unordered_map<std::string, Record> symbol_map;
@@ -103,11 +104,8 @@ class SymbolTable {
         // insert name into symbol table
         void insert(Record tokenRecord);
 
-        // associate attribute with another entry
-        void setAttribute();
-
-        // retrieve associated attribute
-        char *getAttribute();
+        // sets the sequence of parameter data types from a proc header
+        void setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0));
 
         // create a new scope / remove an existing scope at parse time
         void createScope(Word scope);
