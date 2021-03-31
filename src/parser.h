@@ -98,28 +98,29 @@ class Parser {
     std::stack<Word> scopes;
     ParserTree tree;
     SymbolTable symbolTable;
+    bool debug;
     
-    // int peek();
+    // analyzing token stream;
     Word peek() { return this->wordList.front(); }
     Word yoink();
+    bool match(int term);
 
     // assessing grammar
-    bool match(int term);
     void parsingError(std::string expected);
     void parsingError();
     void identifierNotFoundError();
-    void doubleDeclarationError();
+    void doubleDeclarationError(bool globalFlag);
     void arrayBadBoundsError(Node *name);
     void wrongOperatorError(Word op, Word type);
     void wrongOperatorError(Word op, Word type1, Word type2);
     void wrongTypeResolutionError(int expected, int received, int line, int col);
-    void createSymbol(Word token);
+    void createSymbol(Word token, bool globalFlag);
     int findPrimeGrammarType(Node *gram, Node *lhs = NULL); // recursive type checker for left-recursion-eliminated parts
     int findResultType(Word lhs, Word op, Word rhs);
     bool checkValidTypeConversion(Word to, Word from);
     Node *follow(std::string expectedTokenString);
+    Node *followUndeclared(bool globalFlag);
     Node *followDeclared();
-    Node *followUndeclared();
     Node *followLiteral(int literalType);
 
     // expression resolvers
@@ -127,12 +128,12 @@ class Parser {
     Node *programHeader();
     Node *programBody();
     Node *declaration();
-    Node *procDeclaration();
-    Node *procHeader();
+    Node *procDeclaration(bool globalFlag);
+    Node *procHeader(bool globalFlag);
     Node *procBody();
     Node *paramList();
     Node *param();
-    Node *varDeclaration();
+    Node *varDeclaration(bool globalFlag);
     Node *typeMark();
     Node *statement();
     Node *procCall();
@@ -154,7 +155,7 @@ class Parser {
     Node *argList();
 
     public:
-        Parser(std::list<Word> words, SymbolTable table);
+        Parser(std::list<Word> words, SymbolTable table, bool debugMode);
         void parse(); // represents <program> from the syntax cfg
         void printTree(std::string path);
 };

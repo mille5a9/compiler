@@ -3,7 +3,6 @@
 #include <algorithm>
 #include "parser.h"
 #include "scanner.h"
-#include "word.h"
 #include "symboltable.h"
 
 void Scanner::reportError(std::string message) {
@@ -14,10 +13,11 @@ void Scanner::reportWarning(std::string message) {
     std::cout << "WARNING: " << message << std::endl;
 }
 
-bool Scanner::init(char *filename, std::string contents) {
+bool Scanner::init(char *filename, std::string contents, bool debug) {
     this->lineCounter = 1;
     this->errCounter = 0;
     this->warnCounter = 0;
+    this->multilineNest = 0;
     std::cout << "Counters initialized.\n";
 
     this->commentFlag = false;
@@ -41,9 +41,11 @@ bool Scanner::init(char *filename, std::string contents) {
     // assign code text to codestream array
     this->codeStream = contents;
     this->codeLength = contents.length();
-    std::cout << "codeStream contents:\n" << this->codeStream << std::endl;
-    std::cout << "symbolTable contents:\n";
-    symbolTable.print("");
+    if (debug) {
+        std::cout << "codeStream contents:\n" << this->codeStream << std::endl;
+        std::cout << "symbolTable contents:\n";
+        symbolTable.print("");
+    }
     return true;
 }
 
@@ -64,7 +66,11 @@ int Scanner::getNextToken() {
     // lookahead and skip if multiline comment is ending
     else if (multilineCommentFlag) {
         if (current == '*' && this->peekScanner('/')) {
-            multilineCommentFlag = false;
+            multilineNest--;
+            if (multilineNest == 0) multilineCommentFlag = false;
+        }
+        else if (current == '/' && this->peekScanner('*')) {
+            multilineNest++;
         }
         return current;
     }
@@ -91,6 +97,7 @@ int Scanner::getNextToken() {
             }
             else if (this->peekScanner('*')) {
                 this->multilineCommentFlag = true;
+                multilineNest++;
             }
             else {
                 singleCharWord = current;
@@ -220,7 +227,7 @@ int Scanner::getNextToken() {
                 if (it != procList.end()) isProc = true;
             }
 
-            this->wordList.push_back(wordFactory.createIdWord(entireWord, lineCounter, colCounter, T_IDENTIFIER, isProc));
+            this->wordList.push_back(WordFactory::createIdWord(entireWord, lineCounter, colCounter, T_IDENTIFIER, isProc));
         }
         else {
 
@@ -230,7 +237,7 @@ int Scanner::getNextToken() {
             // could be a built-in function, if so must mark as a procedure to avoid lookaheads in the parser
             std::list<std::string>::iterator it = std::find(procList.begin(), procList.end(), entireWord);
             if (it != procList.end()) isProc = true;
-            Word knownToken = wordFactory.createIdWord(
+            Word knownToken = WordFactory::createIdWord(
                 reserved.tokenString, lineCounter, colCounter, reserved.tokenType, isProc);
             this->wordList.push_back(knownToken);
         }
@@ -262,7 +269,7 @@ int Scanner::getNextToken() {
         }
 
         // tokenize this literal
-        this->wordList.push_back(wordFactory.createDigitWord(entireWord, lineCounter, colCounter, numericSubtype));
+        this->wordList.push_back(WordFactory::createDigitWord(entireWord, lineCounter, colCounter, numericSubtype));
         return current;
     }
 
@@ -295,7 +302,7 @@ int Scanner::getNextToken() {
         }
         
         // tokenize this literal
-        this->wordList.push_back(wordFactory.createStringWord(entireWord, lineCounter, colCounter, T_SLITERAL));
+        this->wordList.push_back(WordFactory::createStringWord(entireWord, lineCounter, colCounter, T_SLITERAL));
     }
 
     // EOF is handled by setting current to T_EOF in advanceScanner()
@@ -332,11 +339,24 @@ bool Scanner::peekScanner(char check) {
 // if found, otherwise returns zero for boolean false
 int Scanner::peekScannerAlpha() {
     int next = this->codeStream[this->streamIndex];
+
+    // valid char to add to the word
     if (isalpha(next) || isdigit(next) || next == '_') {
         this->advanceScanner();
         return next;
     }
-    return 0;
+    // valid char that ends the word
+    else if (next == ' '
+        || next == '\n' || next == '\t' || next == ';' || next == '(' || next == ')' || next == '*'
+        || next == '/' || next == ',' || next == ':' || next == '[' || next == ']' || next == '{'
+        || next == '}' || next == '&' || next == '|' || next == '+' || next == '-' || next == '<'
+        || next == '>' || next == '.' || next == '\r') { // Today, I learned about carriage returns
+        return 0;
+    }
+    // need to exit for illegal char
+    std::cout << "(" << this->lineCounter << "," << this->colCounter << ") " 
+        << "Illegal char \"" << (char)next << "\" detected.\n";
+    std::exit(1);
 }
 
 // peeks ahead to check for a letter/digit/underscore, advances the scanner

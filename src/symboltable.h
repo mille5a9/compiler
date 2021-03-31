@@ -61,12 +61,20 @@
 // contains symbol data: token string and type, scope name
 struct Record {
     Record() = default;
+
+    // inserting reserved words during scan
     Record(std::string name, int type, Word scopeWord = Word("GLOBAL", 0, 0, 0)) {
         this->tokenString = name;
         this->tokenType = type;
         this->scope = scopeWord;
     }
-    Record(std::string name, int type, int length, int dataType, Word scopeWord = Word("GLOBAL", 0, 0, 0)) {
+    
+    // overload for inserting identifiers with metadata during parse
+    Record(std::string name, 
+        int type, 
+        int length,
+        int dataType, 
+        Word scopeWord = Word("GLOBAL", 0, 0, 0)) {
         this->tokenString = name;
         this->tokenType = type;
         this->scope = scopeWord;
@@ -102,7 +110,7 @@ class SymbolTable {
         Record lookup(std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0));
 
         // insert name into symbol table
-        void insert(Record tokenRecord);
+        void insert(Record tokenRecord, bool debug = false);
 
         // sets the sequence of parameter data types from a proc header
         void setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0));

@@ -3,13 +3,12 @@
 
 #include <string>
 #include <list>
-#include "symboltable.h"
 
 struct Word {
     Word() = default;
     Word(std::string name, int lineNum, int colNum,  int type);
     std::string tokenString;
-    int tokenType = 0, line = 0, col = 0, length = 1;
+    int tokenType = 0, line = 0, col = 0;
 
     // storing the data of the word
     int intValue = 0;
@@ -58,11 +57,11 @@ struct WordHash {
 };
 
 // factory to handle making different types of words
-static struct WordFactory {
-    Word createGenericWord(std::string name, int lineNum, int colNum,  int type);
-    Word createDigitWord(std::string name, int lineNum, int colNum,  int type);
-    Word createStringWord(std::string name, int lineNum, int colNum,  int type);
-    Word createIdWord(std::string name, int lineNum, int colNum,  int type, bool isProc);
-} wordFactory;
+struct WordFactory {
+    static Word createGenericWord(std::string name, int lineNum, int colNum,  int type);
+    static Word createDigitWord(std::string name, int lineNum, int colNum,  int type);
+    static Word createStringWord(std::string name, int lineNum, int colNum,  int type);
+    static Word createIdWord(std::string name, int lineNum, int colNum,  int type, bool isProc);
+};
 
 #endif

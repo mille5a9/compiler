@@ -46,8 +46,14 @@ Word WordFactory::createGenericWord(std::string name, int lineNum, int colNum, i
 Word WordFactory::createDigitWord(std::string name, int lineNum, int colNum, int type) {
     Word output = Word(name, lineNum, colNum, type);
     name.erase(std::remove(name.begin(), name.end(), '_'), name.end());
-    if (type == T_ILITERAL) output.intValue = std::stoi(name);
-    if (type == T_FLITERAL) output.floatValue = std::stof(name);
+    if (type == T_ILITERAL) {
+        output.intValue = std::stoi(name);
+        output.dataType = T_INTEGER;
+    }
+    if (type == T_FLITERAL) {
+        output.floatValue = std::stof(name);
+        output.dataType = T_FLOAT;
+    }
     return output;
 }
 
@@ -58,6 +64,7 @@ Word WordFactory::createStringWord(std::string name, int lineNum, int colNum, in
     // trim the quotes off the string and store the raw string data
     name = name.substr(1, name.size() - 2);
     output.strValue = name;
+    output.dataType = T_STRING;
     return output;
 }
 

@@ -5,7 +5,7 @@
 // search for a token name and a pointer to its entry
 // takes the scope stack from the parser and locates records
 Record SymbolTable::lookup(std::string tokenString, std::stack<Word> scopes) {
-    size_t scopesCount = scopes.size();
+    int scopesCount = scopes.size();
     symbol_book::const_iterator domain;
     symbol_map::const_iterator subject;
     Record found;
@@ -40,7 +40,6 @@ Record SymbolTable::lookup(std::string tokenString, Word scope) {
     if (subject == domain->second.end()) return Record(); // no match, next scope
     found = subject->second;
 
-    std::cout << tokenString << " record lookup successful in " << scope.tokenString << " scope\n";
     return found;
 }
 
@@ -61,13 +60,13 @@ void SymbolTable::print(std::string localScope) {
 }
 
 // insert name into symbol table at record's scope, if it isn't already there
-void SymbolTable::insert(Record tokenRecord) {
-    std::cout << "inserting symbol " << tokenRecord.tokenString << " at scope " << tokenRecord.scope.tokenString << "\n";
+void SymbolTable::insert(Record tokenRecord, bool debug) {
+    if (debug) std::cout << "Inserting symbol " << tokenRecord.tokenString << " at scope " << tokenRecord.scope.tokenString << "\n";
 
     symbol_book::const_iterator domain = this->tables.find(tokenRecord.scope);
     if (domain == this->tables.end()) return; // scope doesn't exist
 
-    std::cout << "scope found...\n";
+    if (debug) std::cout << "scope found...\n";
 
     //symbol_map &table = domain->second;
     this->tables[tokenRecord.scope][tokenRecord.tokenString] = tokenRecord;
@@ -90,7 +89,7 @@ void SymbolTable::removeScope(Word scope) {
 }
 
 // sets the sequence of parameter data types from a proc header
-void SymbolTable::setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0)) {
+void SymbolTable::setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope) {
     this->tables[scope][tokenString].argTypes = argTypes;
 }
 

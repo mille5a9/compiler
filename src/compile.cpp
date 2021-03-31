@@ -17,12 +17,20 @@ int main(int argc, char **argv) {
     }
     std::cout << "File detected...\n";
 
+    // 'debug = false' flag causes fatal errors to terminate program
+    // this prevents cascades of errors from confusing a user
+    // when set to true, the program is carried out to produce parsetree.txt for a diagnosis
+    bool debug = false;
+    if (argc == 3) { // check for debug flag
+        if (strcmp(argv[2], "-debug") == 0) debug = true; 
+    }
+
     // initialize scanner
     std::ifstream inputFile(filename);
     std::string contents((std::istreambuf_iterator<char>(inputFile)), 
         std::istreambuf_iterator<char>());
     std::cout << "Scan initialization...\n";
-    scan.init(filename, contents);
+    scan.init(filename, contents, debug);
 
     // scan for tokens and add them to the scanner's list
     int nextWord = 0;
@@ -38,9 +46,9 @@ int main(int argc, char **argv) {
     std::cout << "Got word list...\n";
     SymbolTable table = scan.getSymbolTable();
     std::cout << "Got symbol table...\n";
-    table.print("");
+    if (debug) table.print("");
     std::cout << "Starting parse...\n";
-    Parser parser = Parser(words, table);
+    Parser parser = Parser(words, table, debug);
     parser.parse();
     std::cout << "Parse Complete...\n";
     std::cout << "Printing parsetree.txt...\n";

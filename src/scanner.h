@@ -7,6 +7,7 @@
 #include <memory>
 #include <sys/stat.h>
 #include <utility>
+#include "word.h"
 
 // time-efficient check for file existence
 inline bool fileExists(char *filename) {
@@ -16,7 +17,8 @@ inline bool fileExists(char *filename) {
 
 static class Scanner {
     int lineCounter = 1, colCounter = 0, 
-        errCounter = 0, warnCounter = 0, streamIndex = 0;
+        errCounter = 0, warnCounter = 0, 
+        streamIndex = 0, multilineNest = 0;
     bool commentFlag = false, multilineCommentFlag = false;
     SymbolTable symbolTable;
     std::string codeStream;
@@ -31,7 +33,7 @@ static class Scanner {
     void reportWarning(std::string message);
 
     public:
-        bool init(char *filename, std::string contents);
+        bool init(char *filename, std::string contents, bool debug);
         int getNextToken();
         void writeWordList();
         std::list<Word> getWordList();
