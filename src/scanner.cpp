@@ -200,11 +200,13 @@ int Scanner::getNextToken() {
         // check for type names and boolean literals
         if (entireWord == "TRUE") {
             Word trueWord = Word(entireWord, lineCounter, colCounter, T_TRUE);
+            trueWord.dataType = T_BOOL;
             this->wordList.push_back(trueWord);
             return current;
         }
         else if (entireWord == "FALSE") {
             Word falseWord = Word(entireWord, lineCounter, colCounter, T_FALSE);
+            falseWord.dataType = T_BOOL;
             this->wordList.push_back(falseWord);
             return current;
         }
@@ -377,7 +379,8 @@ void Scanner::writeWordList() {
     wordsOut.open("../build/wordlist.txt", std::ofstream::out | std::ofstream::trunc);
     while (copyWordList.empty() == false) {
         Word frontWord = copyWordList.front();
-        wordsOut << frontWord.tokenType << "," << frontWord.tokenString << "\n";
+        wordsOut << frontWord.tokenType << "," << frontWord.tokenString << ": "
+            << frontWord.dataType << "\n";
         copyWordList.pop_front();
     }
     wordsOut.close();

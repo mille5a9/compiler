@@ -89,7 +89,8 @@ void SymbolTable::removeScope(Word scope) {
 }
 
 // sets the sequence of parameter data types from a proc header
-void SymbolTable::setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope) {
+void SymbolTable::setArgTypes(std::list<int> argTypes, std::string tokenString, bool debug, Word scope) {
+    if (debug) std::cout << "setting arg types to " << tokenString << std::endl;
     this->tables[scope][tokenString].argTypes = argTypes;
 }
 
@@ -212,7 +213,48 @@ SymbolTable::SymbolTable() {
 
     int reservedCount = sizeof(reservedTypes) / sizeof(reservedTypes[0]);
     for (int i = 0; i < reservedCount; i++) {
-        table[reservedStrings[i]] = Record(reservedStrings[i], reservedTypes[i]);
+
+        Record toBeAdded = Record(reservedStrings[i], reservedTypes[i]);
+
+        // special insertion of builtin proc information
+        if (reservedTypes[i] == T_IDENTIFIER) {
+
+            switch (i) {
+                case 42 :
+                    toBeAdded.tokenDataType = T_BOOL;
+                    break;
+                case 43 :
+                    toBeAdded.tokenDataType = T_INTEGER;
+                    break;
+                case 44 :
+                    toBeAdded.tokenDataType = T_FLOAT;
+                    break;
+                case 45 :
+                    toBeAdded.tokenDataType = T_STRING;
+                    break;
+                case 46 :
+                    toBeAdded.argTypes.push_back(T_BOOL);
+                    toBeAdded.tokenDataType = T_BOOL;
+                    break;
+                case 47 :
+                    toBeAdded.argTypes.push_back(T_INTEGER);
+                    toBeAdded.tokenDataType = T_BOOL;
+                    break;
+                case 48 :
+                    toBeAdded.argTypes.push_back(T_FLOAT);
+                    toBeAdded.tokenDataType = T_BOOL;
+                    break;
+                case 49 :
+                    toBeAdded.argTypes.push_back(T_STRING);
+                    toBeAdded.tokenDataType = T_BOOL;
+                    break;
+                case 50 :
+                    toBeAdded.argTypes.push_back(T_INTEGER);
+                    toBeAdded.tokenDataType = T_FLOAT;
+            }
+        }
+
+        table[reservedStrings[i]] = toBeAdded;
     }
 
     std::pair<Word, symbol_map> entry(Word("GLOBAL", 0, 0, 0), table);

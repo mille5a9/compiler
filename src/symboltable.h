@@ -113,7 +113,7 @@ class SymbolTable {
         void insert(Record tokenRecord, bool debug = false);
 
         // sets the sequence of parameter data types from a proc header
-        void setArgTypes(std::list<int> argTypes, std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0));
+        void setArgTypes(std::list<int> argTypes, std::string tokenString, bool debug, Word scope = Word("GLOBAL", 0, 0, 0));
 
         // create a new scope / remove an existing scope at parse time
         void createScope(Word scope);

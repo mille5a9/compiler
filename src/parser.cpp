@@ -122,8 +122,8 @@ void Parser::arrayBadBoundsError(Node *name) {
 
 // invalid use of operator on a certain type
 void Parser::wrongOperatorError(Word op, Word type) {
-    std::cout << "Invalid use of \"" << op.tokenString << "\" operator with operand of type \"" 
-        << type.dataType << "\"\n";
+    std::cout << "(" << type.line << "," << type.col << ") Invalid use of \"" 
+        << op.tokenString << "\" operator with operand of type \"" << type.dataType << "\"\n";
         
     if (this->debug == false) std::exit(1);
 }
@@ -221,6 +221,7 @@ Node *Parser::followLiteral(int literalType) {
             std::cout << "Found literal with tokentype \"" << nextWord.tokenType << "\"\n";
             std::cout << "Found literal with datatype \"" << nextWord.dataType << "\"\n";
         }
+        
         return new Node(this->yoink());
     }
     else {
@@ -456,6 +457,7 @@ Node *Parser::procHeader(bool globalFlag) {
     std::list<int> argTypes = (*procedureHeader)[5]->getTerminal().procParamTypes;
     this->symbolTable.setArgTypes(argTypes,
         (*procedureHeader)[1]->getTerminal().tokenString,
+        this->debug,
         prevScope);
 
     return procedureHeader;
@@ -515,7 +517,7 @@ Node *Parser::paramList() {
     }
     else return parameterList;
 
-    if (this->peek().tokenType == T_COMMA) {
+    while (this->peek().tokenType == T_COMMA) {
         parameterList->addChild(this->follow(","));
         parameterList->addChild(this->param());
     }
@@ -524,6 +526,8 @@ Node *Parser::paramList() {
     int paramCount = (parameterList->getChildCount() + 1) / 2;
     for (int i = 0; i < paramCount; i++) {
         terminal.procParamTypes.push_back((*parameterList)[i * 2]->getTerminal().dataType);
+        if (this->debug) std::cout << "Pushing back param to paramList: " 
+            << (*parameterList)[i * 2]->getTerminal().dataType << std::endl;
     }
     parameterList->setTerminal(terminal);
 
@@ -536,6 +540,7 @@ Node *Parser::param() {
 
     Node *param = new Node(E_PARAM);
     param->addChild(this->varDeclaration(false));
+    param->setTerminal((*param)[0]->getTerminal());
     return param;
 }
 
@@ -565,6 +570,8 @@ Node *Parser::varDeclaration(bool globalFlag) {
         newIdentifier.length = varDeclaration->getChildTerminal(5).intValue;
     }
     this->createSymbol(newIdentifier, globalFlag); // create symbol for identifier
+
+    varDeclaration->setTerminal(newIdentifier);
 
     return varDeclaration;
 }
@@ -642,10 +649,15 @@ Node *Parser::procCall() {
     procCall->setTerminal((*procCall)[0]->getTerminal());
 
     // SA: ensure that argList matches argTypes list from the proc id's Record in the table
-    std::list<int> argTypes = (*procCall)[0]->getTerminal().procParamTypes;
-    if (argTypes != (*procCall)[2]->getTerminal().procParamTypes) {
+    std::list<int> paramTypes = (*procCall)[0]->getTerminal().procParamTypes;
+    if (paramTypes != (*procCall)[2]->getTerminal().procParamTypes) {
         std::cout << "(" << procCall->getTerminal().line << "," << procCall->getTerminal().col 
             << ") Error: arg list types do not match proc header.\n";
+        std::cout << "paramList: ";
+        for (auto const& i: (*procCall)[0]->getTerminal().procParamTypes) std::cout << i << " ";
+        std::cout << "\nargList: ";
+        for (auto const& i: (*procCall)[2]->getTerminal().procParamTypes) std::cout << i << " ";
+        std::cout << std::endl;
     }
 
     return procCall;
@@ -772,7 +784,7 @@ Node *Parser::loopStatement() {
 
     // SA: expression must resolve to bool, or maybe int for casting
     Word expression = loopStatement->getChildTerminal(4);
-    if (expression.dataType != (T_BOOL || T_INTEGER)) {
+    if (expression.dataType != T_BOOL && expression.dataType != T_INTEGER) {
         this->wrongTypeResolutionError(T_BOOL, expression.dataType, expression.line, expression.col);
     }
     
@@ -977,6 +989,10 @@ Node *Parser::factor() {
             factor->addChild(this->follow("("));
             factor->addChild(this->expression());
             factor->addChild(this->follow(")"));
+
+            factor->setTerminal((*factor)[1]->getTerminal());
+            return factor;
+
             break;
 
         case T_SUB :
@@ -1009,10 +1025,10 @@ Node *Parser::factor() {
             factor->addChild(this->followLiteral(T_SLITERAL));
             break;
         case T_TRUE :
-            factor->addChild(this->follow("TRUE"));
+            factor->addChild(this->followLiteral(T_TRUE));
             break;
         case T_FALSE :
-            factor->addChild(this->follow("FALSE"));
+            factor->addChild(this->followLiteral(T_FALSE));
             break;
         default :
             this->parsingError("a literal or variable name");
@@ -1028,9 +1044,13 @@ Node *Parser::factor() {
     // SA: find and set the child type 
     factor->setTerminal(factor->getChildTerminal(factor->getChildCount() - 1));
     
-    // check for negative sign and make sure that the type can be negative
+    // check for negative sign and make sure that the type isn't not able to be negative
     if (factor->getChildTerminal(0).tokenType == T_SUB
-        && factor->getChildTerminal(1).dataType != (T_INTEGER || T_FLOAT)) {
+        && (factor->getChildTerminal(1).dataType != T_INTEGER 
+        && factor->getChildTerminal(1).dataType != T_FLOAT)) {
+        if (debug) std::cout << "Imminent wrongOperatorError: "
+            << factor->getChildTerminal(0).tokenType << " and "
+            << factor->getChildTerminal(1).dataType << std::endl;
         this->wrongOperatorError(factor->getChildTerminal(0), factor->getChildTerminal(1));
         // continue parse, will ignore the negation if it is on a string or bool
     }
@@ -1082,14 +1102,12 @@ Node *Parser::argList() {
         case T_LPAREN : case T_SUB : case T_IDENTIFIER : case T_ILITERAL :
         case T_FLITERAL : case T_SLITERAL : case T_TRUE : case T_FALSE :
             argList->addChild(this->expression());
-        default :
-            return argList;
     }
 
     // optional comma to denote recursive call
-    if (this->peek().tokenType == T_COMMA) {
+    while (this->peek().tokenType == T_COMMA) {
         argList->addChild(this->follow(","));
-        argList->addChild(this->argList());
+        argList->addChild(this->expression());
     }
     
     // pass the meaning of this arg list as a list of data types
@@ -1097,6 +1115,8 @@ Node *Parser::argList() {
     int paramCount = (argList->getChildCount() + 1) / 2;
     for (int i = 0; i < paramCount; i++) {
         terminal.procParamTypes.push_back((*argList)[i * 2]->getTerminal().dataType);
+        if (this->debug) std::cout << "Pushing back arg to argList: " 
+            << (*argList)[i * 2]->getTerminal().dataType << std::endl;
     }
     argList->setTerminal(terminal);
 
