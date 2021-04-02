@@ -74,3 +74,21 @@ Word WordFactory::createIdWord(std::string name, int lineNum, int colNum, int ty
     output.isProcIdentifier = isProc;
     return output;
 }
+
+// initializes the appropriate list inside a word with length > 1
+// array values are initialized to the default of the data type
+void WordFactory::initWordArray(Word &arrayWord) {
+    switch (arrayWord.dataType) {
+        case T_INTEGER :
+            for (int i = 0; i < arrayWord.length; i++) arrayWord.arrayInt.push_back(0);
+            break;
+        case T_FLOAT :
+            for (int i = 0; i < arrayWord.length; i++) arrayWord.arrayFloat.push_back(0.0);
+            break;
+        case T_STRING :
+            for (int i = 0; i < arrayWord.length; i++) arrayWord.arrayString.push_back("");
+            break;
+        case T_BOOL :
+            for (int i = 0; i < arrayWord.length; i++) arrayWord.arrayBool.push_back(false);
+    }
+}

@@ -62,6 +62,7 @@ struct WordFactory {
     static Word createDigitWord(std::string name, int lineNum, int colNum,  int type);
     static Word createStringWord(std::string name, int lineNum, int colNum,  int type);
     static Word createIdWord(std::string name, int lineNum, int colNum,  int type, bool isProc);
+    static void initWordArray(Word &arrayWord);
 };
 
 #endif
