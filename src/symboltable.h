@@ -106,7 +106,7 @@ class SymbolTable {
         void print(std::string localScope);
 
         // search scopes for a token name and a pointer to its entry
-        Record lookup(std::string tokenString, std::stack<Word> scope);
+        Record lookup(std::string tokenString, std::stack<Word> scope, bool debug);
         Record lookup(std::string tokenString, Word scope = Word("GLOBAL", 0, 0, 0));
 
         // insert name into symbol table

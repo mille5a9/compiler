@@ -4,7 +4,7 @@
 
 // search for a token name and a pointer to its entry
 // takes the scope stack from the parser and locates records
-Record SymbolTable::lookup(std::string tokenString, std::stack<Word> scopes) {
+Record SymbolTable::lookup(std::string tokenString, std::stack<Word> scopes, bool debug) {
     int scopesCount = scopes.size();
     symbol_book::const_iterator domain;
     symbol_map::const_iterator subject;
@@ -12,6 +12,9 @@ Record SymbolTable::lookup(std::string tokenString, std::stack<Word> scopes) {
 
     // search the scope heirarchy starting from most local
     for (int i = 0; i < scopesCount; i++) {
+        if (debug) std::cout << "in SymbolTable::lookup(): searching scope='"
+            << scopes.top().tokenString << "'\n";
+
         domain = this->tables.find(scopes.top());
         scopes.pop();
         if (domain == this->tables.end()) continue; // scope doesn't exist?
@@ -20,6 +23,7 @@ Record SymbolTable::lookup(std::string tokenString, std::stack<Word> scopes) {
         subject = domain->second.find(tokenString);
         if (subject == domain->second.end()) continue; // no match, next scope
         found = subject->second;
+        break;
     }
 
     return found;
@@ -49,12 +53,13 @@ void SymbolTable::print(std::string localScope) {
 
     std::for_each(this->tables.begin(), this->tables.end(), [](std::pair<Word, symbol_map> sm) {
 
-        std::cout << "Iterating over scope: " << sm.first.tokenString << "("
+        std::cout << "Iterating over scope: " << sm.first.tokenString << " ("
             << sm.first.line << "," << sm.first.col << ")\n";
 
         std::for_each(sm.second.begin(), sm.second.end(), [](std::pair<std::string, Record> r) {
 
-            std::cout << r.second.scope.tokenString << ": " << "{" << r.first << ": " << r.second.tokenType << "}\n";
+            std::cout << r.second.scope.tokenString << ": " << "{" << r.first 
+                << ": datatype='" << r.second.tokenDataType << "', tokentype='" << r.second.tokenType << "'}\n";
         });
     });
 }

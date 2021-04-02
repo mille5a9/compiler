@@ -42,10 +42,6 @@ void ParserTree::outputTree(std::string path) {
     treeOut.close();
 }
 
-void Parser::printTree(std::string path) {
-    this->tree.outputTree(path);
-}
-
 // constructs the parser with the wordlist from the scanner and the symbol table generated
 Parser::Parser(std::list<Word> words, SymbolTable table, bool debugMode) {
     this->wordList = words;
@@ -57,25 +53,47 @@ Parser::Parser(std::list<Word> words, SymbolTable table, bool debugMode) {
     this->scopes.push(Word("GLOBAL", 0, 0, 0));
 }
 
+void Parser::printTree(std::string path) {
+    this->tree.outputTree(path);
+}
+
+Word Parser::peek() { 
+
+    // handle empty case - calling front() on an empty list is undefined behavior
+    if (this->wordList.empty()) {
+        std::cout << "Warning: Unexpected EOF, did you forget to end with '.'?\n";
+        this->wordList.push_front(WordFactory::createGenericWord(".", 0, 0, T_PERIOD));
+    }
+
+    return this->wordList.front(); 
+}
+
 // retrieves the front token and then obliterates it from the record
 Word Parser::yoink() {
-    if (this->debug) std::cout << "Entered yoink()\n";
-    if (this->wordList.empty()) return Word();
-    Word next = this->wordList.front();
+    if (this->debug) this->printLocation("Entered yoink()");
+
+    Word next = this->peek();
     this->wordList.pop_front();
     return next;
 }
 
 // checks a terminal id to make sure next token is that term
 bool Parser::match(int term) {
+    if (this->debug) this->printLocation("Entered match()");
     return (term == this->peek().tokenType);
+}
+
+// prints the line and column of the next word for debugging
+void Parser::printLocation(std::string locationDesc) {
+    Word next = this->peek();
+    std::cout << "(" << next.line << "," << next.col << ") " << locationDesc << std::endl;
 }
 
 // alerts user of error in the grammar
 void Parser::parsingError(std::string expected) {
-    if (this->debug) std::cout << "Entered parsingError(string)\n";
+    if (this->debug) this->printLocation("Entered parsingError(string)");
 
-    Word next = this->wordList.front();
+    Word next = this->peek();
     std::cout << "Error (" << next.line << ", " << next.col << "): "
         << "Unexpected instance of  \"" << next.tokenString << "\". "
         << "Did you mean: \"" << expected << "\"?\n";
@@ -84,9 +102,9 @@ void Parser::parsingError(std::string expected) {
 
 // alerts of error without suggestion
 void Parser::parsingError() {
-    if (this->debug) std::cout << "Entered parsingError()\n";
+    if (this->debug) this->printLocation("Entered parsingError()");
 
-    Word next = this->wordList.front();
+    Word next = this->peek();
     std::cout << "Error (" << next.line << ", " << next.col << "): "
         << "Unexpected instance of  \"" << next.tokenString << "\".\n";
     this->wordList.pop_front(); // discard mistake, attempt to continue with the parse
@@ -94,7 +112,8 @@ void Parser::parsingError() {
 
 // alerts of out of scope or undeclared identifier usage
 void Parser::identifierNotFoundError() {
-    Word next = this->wordList.front();
+    if (this->debug) this->printLocation("Entered identifierNotFoundError()");
+    Word next = this->peek();
     std::cout << "Identifier not declared or is being used out of scope "
         << "(" << next.line << "," << next.col << ")\n";
     if (this->debug == false) std::exit(1);
@@ -102,7 +121,9 @@ void Parser::identifierNotFoundError() {
 
 // alerts of a double declaration within the local scope
 void Parser::doubleDeclarationError(bool globalFlag) {
-    Word next = this->wordList.front();
+    if (this->debug) this->printLocation("Entered doubleDeclarationError()");
+
+    Word next = this->peek();
     Word topScope = this->scopes.top();
     if (globalFlag) topScope = Word("GLOBAL", 0, 0, 0);
     std::cout << next.tokenString << " (" << next.line << "," << next.col
@@ -113,6 +134,7 @@ void Parser::doubleDeclarationError(bool globalFlag) {
 
 // alerts of a non-int array bound arg
 void Parser::arrayBadBoundsError(Node *name) {
+    if (this->debug) this->printLocation("Entered arrayBadBoundsError()");
     Word expression = name->getChildTerminal(2);
     std::cout << "Array bound needs to be an integer. (" << expression.line
         << "," << expression.col << ")\n";
@@ -122,6 +144,7 @@ void Parser::arrayBadBoundsError(Node *name) {
 
 // invalid use of operator on a certain type
 void Parser::wrongOperatorError(Word op, Word type) {
+    if (this->debug) this->printLocation("Entered wrongOperatorError(Word Word)");
     std::cout << "(" << type.line << "," << type.col << ") Invalid use of \"" 
         << op.tokenString << "\" operator with operand of type \"" << type.dataType << "\"\n";
         
@@ -130,6 +153,7 @@ void Parser::wrongOperatorError(Word op, Word type) {
 
 // invalid use of operator on two certain types
 void Parser::wrongOperatorError(Word op, Word type1, Word type2) {
+    if (this->debug) this->printLocation("Entered wrongOperatorError(Word Word Word)");
     std::cout << "Invalid use of \"" << op.tokenString << "\" operator with operands of type \"" 
         << type1.dataType << "\" and \"" << type2.dataType << "\"\n";
         
@@ -138,6 +162,7 @@ void Parser::wrongOperatorError(Word op, Word type1, Word type2) {
 
 // something should've resolved to a different type
 void Parser::wrongTypeResolutionError(int expected, int received, int line, int col) {
+    if (this->debug) this->printLocation("Entered wrongTypeResolutionError()");
     std::string expectedName = "", receivedName = "";
     switch (expected) {
         case T_INTEGER : expectedName = "int";
@@ -160,7 +185,7 @@ void Parser::wrongTypeResolutionError(int expected, int received, int line, int 
 // Wraps up yoink(), match(), and parsingError(). Cleanliness, is all.
 // This overload is used for reserved words and punctuation
 Node *Parser::follow(std::string expectedTokenString) {
-    if (this->debug) std::cout << "Entered follow(string)\n";
+    if (this->debug) this->printLocation("Entered follow(string)");
 
     Record expected = this->symbolTable.lookup(expectedTokenString); // uses the global-only overload
     if (this->match(expected.tokenType)) return new Node(this->yoink());
@@ -172,7 +197,7 @@ Node *Parser::follow(std::string expectedTokenString) {
 
 // Finds a match for an identifier during declaration
 Node *Parser::followUndeclared(bool globalFlag) {
-    if (this->debug) std::cout << "Entered followUndeclared()\n";
+    if (this->debug) this->printLocation("Entered followUndeclared(bool)");
 
     Word nextWord = this->peek();
     Word topScope = this->scopes.top();
@@ -192,10 +217,13 @@ Node *Parser::followUndeclared(bool globalFlag) {
 
 // Finds an identifier that already exists in the symbol table
 Node *Parser::followDeclared() {
-    if (this->debug) std::cout << "Entered followDeclare()\n";
+    if (this->debug) this->printLocation("Entered followDeclare()");
 
     Word nextWord = this->peek();
-    Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes);
+    Record expected = this->symbolTable.lookup(nextWord.tokenString, this->scopes, this->debug);
+    if (this->debug) std::cout << "looked up " << expected.tokenString
+        << " and found it in some scope with datatype='" << expected.tokenDataType
+        << "' and tokentype='" << expected.tokenType << "'\n";
 
     // doesn't exist in symbol table, must be undeclared or out of scope usage of identifier
     if (expected.tokenType == 0) {
@@ -213,7 +241,7 @@ Node *Parser::followDeclared() {
 // Finds a match for a literal, different from an identifier because
 // it will not reference the symbol table
 Node *Parser::followLiteral(int literalType) {
-    if (this->debug) std::cout << "Entered followLiteral(int)\n";
+    if (this->debug) this->printLocation("Entered followLiteral(int)");
 
     Word nextWord = this->peek();
     if (nextWord.tokenType == literalType) {
@@ -232,6 +260,7 @@ Node *Parser::followLiteral(int literalType) {
 
 // Make record in the symbol table
 void Parser::createSymbol(Word token, bool globalFlag) {
+    if (this->debug) this->printLocation("Entered createSymbol()");
 
     // ensure symbol isn't already in the local scope
     Record expected = this->symbolTable.lookup(token.tokenString, this->scopes.top());
@@ -250,6 +279,7 @@ void Parser::createSymbol(Word token, bool globalFlag) {
 // finds resulting type of a left-recursion-eliminated subtree
 // used for expression, mathop, relation, and term
 int Parser::findPrimeGrammarType(Node *gram, Node *lhs) {
+    if (this->debug) this->printLocation("Entered findPrimeGrammarType()");
 
     // master node of these structures has different children
     if (lhs == NULL) {
@@ -283,6 +313,7 @@ int Parser::findPrimeGrammarType(Node *gram, Node *lhs) {
 }
 
 bool Parser::checkValidTypeConversion(Word to, Word from) {
+    if (this->debug) this->printLocation("Entered checkValidTypeConversion()");
 
     switch (to.dataType) {
         case T_INTEGER :
@@ -303,6 +334,8 @@ bool Parser::checkValidTypeConversion(Word to, Word from) {
 // checks both operands of an operation and determines the output type
 // produces error for mismatched types
 int Parser::findResultType(Word lhs, Word op, Word rhs) {
+    if (this->debug) this->printLocation("Entered findResultType()");
+
     int firstType = lhs.dataType;
     int secondType = rhs.dataType;
 
@@ -333,7 +366,7 @@ int Parser::findResultType(Word lhs, Word op, Word rhs) {
 // populates parser tree using wordList and left recursion with single lookahead
 // looks for program header, program body, and then a period
 void Parser::parse() {
-    if (this->debug) std::cout << "Entered parse()\n";
+    if (this->debug) this->printLocation("Entered parse()");
 
     Node *top = this->tree.getHead();
 
@@ -347,7 +380,7 @@ void Parser::parse() {
 
 // looks for "program" terminal, an identifier, and "is" terminal
 Node *Parser::programHeader() {
-    if (this->debug) std::cout << "Entered programHeader()\n";
+    if (this->debug) this->printLocation("Entered programHeader()");
 
     Node *programHeader = new Node(E_PROGHEAD);
     programHeader->addChild(this->follow("PROGRAM"));
@@ -362,7 +395,7 @@ Node *Parser::programHeader() {
 // looks for 0 or more declarations with semicolon terminals, "begin" terminal,
 // 0 or more statements with semicolon terminals, "end", and then "program" 
 Node *Parser::programBody() {
-    if (this->debug) std::cout << "Entered programBody()\n";
+    if (this->debug) this->printLocation("Entered programBody()");
 
     Node *programBody = new Node(E_PROGBODY);
 
@@ -397,7 +430,7 @@ Node *Parser::programBody() {
 
 // "global" <- optional, procedure_dec or variable_dec
 Node *Parser::declaration() {
-    if (this->debug) std::cout << "Entered declaration()\n";
+    if (this->debug) this->printLocation("Entered declaration()");
 
     Word nextWord = this->peek();
 
@@ -419,7 +452,7 @@ Node *Parser::declaration() {
 
 // procedure header and procedure body
 Node *Parser::procDeclaration(bool globalFlag) {
-    if (this->debug) std::cout << "Entered procDeclaration()\n";
+    if (this->debug) this->printLocation("Entered procDeclaration()");
 
     Node *procedure = new Node(E_PROCDEC);
 
@@ -433,7 +466,7 @@ Node *Parser::procDeclaration(bool globalFlag) {
 // "procedure", identifier, colon terminal, type mark, left paren terminal,
 // param list, right paren terminal
 Node *Parser::procHeader(bool globalFlag) {
-    if (this->debug) std::cout << "Entered procHeader()\n";
+    if (this->debug) this->printLocation("Entered procHeader()");
 
     Node *procedureHeader = new Node(E_PROCHEAD);
     procedureHeader->addChild(this->follow("PROCEDURE"));
@@ -466,7 +499,7 @@ Node *Parser::procHeader(bool globalFlag) {
 // 0 or more declarations with semicolon terminal, "begin", 0 or more
 // statements with semicolon terminal, "end", "procedure"
 Node *Parser::procBody() {
-    if (this->debug) std::cout << "Entered procBody()\n";
+    if (this->debug) this->printLocation("Entered procBody()");
 
     Word nextWord = this->peek();
 
@@ -508,7 +541,7 @@ Node *Parser::procBody() {
 // [parameter and comma terminal and param list] OR 
 // just parameter (no comma)
 Node *Parser::paramList() {
-    if (this->debug) std::cout << "Entered paramList()\n";
+    if (this->debug) this->printLocation("Entered paramList()");
 
     Node *parameterList = new Node(E_PARAMS);
 
@@ -536,7 +569,7 @@ Node *Parser::paramList() {
 
 // always a variable declaration call
 Node *Parser::param() {
-    if (this->debug) std::cout << "Entered param()\n";
+    if (this->debug) this->printLocation("Entered param()");
 
     Node *param = new Node(E_PARAM);
     param->addChild(this->varDeclaration(false));
@@ -547,7 +580,7 @@ Node *Parser::param() {
 // "variable", identifier, colon terminal, type mark, {left bracket terminal,
 // bound (sneaky terminal), right bracket terminal} <- optional
 Node *Parser::varDeclaration(bool globalFlag) {
-    if (this->debug) std::cout << "Entered varDeclaration()\n";
+    if (this->debug) this->printLocation("Entered varDeclaration()");
 
     Node *varDeclaration(new Node(E_VARDEC));
 
@@ -568,8 +601,11 @@ Node *Parser::varDeclaration(bool globalFlag) {
 
         // semantic analysis: assign the array length to the identifier word 
         newIdentifier.length = varDeclaration->getChildTerminal(5).intValue;
+        WordFactory::initWordArray(newIdentifier);
     }
     this->createSymbol(newIdentifier, globalFlag); // create symbol for identifier
+
+    if (this->debug) this->symbolTable.print(this->scopes.top().tokenString);
 
     varDeclaration->setTerminal(newIdentifier);
 
@@ -578,7 +614,7 @@ Node *Parser::varDeclaration(bool globalFlag) {
 
 // ["integer" | "float" | "string" | "bool"]
 Node *Parser::typeMark() {
-    if (this->debug) std::cout << "Entered typeMark()\n";
+    if (this->debug) this->printLocation("Entered typeMark()");
 
     Word nextWord = this->peek();
 
@@ -610,7 +646,7 @@ Node *Parser::typeMark() {
 
 // 1 of 4 types of statement: assignment, if, loop, return
 Node *Parser::statement() {
-    if (this->debug) std::cout << "Entered statement()\n";
+    if (this->debug) this->printLocation("Entered statement()");
 
     Word nextWord = this->peek();
 
@@ -637,7 +673,7 @@ Node *Parser::statement() {
 
 // identifier, left paren terminal, expression, right paren terminal
 Node *Parser::procCall() {
-    if (this->debug) std::cout << "Entered procCall()\n";
+    if (this->debug) this->printLocation("Entered procCall()");
 
     Node *procCall = new Node(E_PROCCALL);
     procCall->addChild(this->followDeclared()); // proc must exist to call it
@@ -665,7 +701,7 @@ Node *Parser::procCall() {
 
 // destination, "assign" terminal, expression
 Node *Parser::assignStatement() {
-    if (this->debug) std::cout << "Entered assignStatement()\n";
+    if (this->debug) this->printLocation("Entered assignStatement()");
 
     Node *assignStatement = new Node(E_ASGNSTMT);
 
@@ -685,7 +721,7 @@ Node *Parser::assignStatement() {
 
 // identifier, {left bracket terminal, expression, right bracket terminal} <- optional
 Node *Parser::destination() {
-    if (this->debug) std::cout << "Entered destination()\n";
+    if (this->debug) this->printLocation("Entered destination()");
 
     Node *destination = new Node(E_DEST);
 
@@ -719,7 +755,7 @@ Node *Parser::destination() {
 // "if", "lparen", expression, "rparen", "then", 0 or more [statement, ";"],
 // {"else", 0 or more of [statement, ";"]} <- optional, "end", "if"
 Node *Parser::ifStatement() {
-    if (this->debug) std::cout << "Entered ifStatement()\n";
+    if (this->debug) this->printLocation("Entered ifStatement()");
 
     Node *ifStatement = new Node(E_IFSTMT);
 
@@ -771,7 +807,7 @@ Node *Parser::ifStatement() {
 // "for", "lparen", assignment statement, ";", expression, "rparen",
 // 0 or more of [statement, ";"], "end", "for"
 Node *Parser::loopStatement() {
-    if (this->debug) std::cout << "Entered loopStatement()\n";
+    if (this->debug) this->printLocation("Entered loopStatement()");
 
     Node *loopStatement = new Node(E_LPSTMT);
 
@@ -805,7 +841,7 @@ Node *Parser::loopStatement() {
 
 // "return", expression
 Node *Parser::returnStatement() {
-    if (this->debug) std::cout << "Entered returnStatement()\n";
+    if (this->debug) this->printLocation("Entered returnStatement()");
 
     Node *returnStatement = new Node(E_RTRNSTMT);
     returnStatement->addChild(this->follow("RETURN"));
@@ -821,7 +857,7 @@ Node *Parser::returnStatement() {
 // expression, "|", mathop OR
 // {"NOT"} <- optional, mathop
 Node *Parser::expression() {
-    if (this->debug) std::cout << "Entered expression()\n";
+    if (this->debug) this->printLocation("Entered expression()");
 
     Node *expression = new Node(E_EXPR);
 
@@ -838,7 +874,7 @@ Node *Parser::expression() {
 
 // helper for left recursion elimination
 Node *Parser::expressionPrime() {
-    if (this->debug) std::cout << "Entered expressionPrime()\n";
+    if (this->debug) this->printLocation("Entered expressionPrime()");
 
     Word nextWord = this->peek();
 
@@ -862,7 +898,7 @@ Node *Parser::expressionPrime() {
 // mathop, "-", relation OR
 // relation
 Node *Parser::mathOperation() {
-    if (this->debug) std::cout << "Entered mathOperation()\n";
+    if (this->debug) this->printLocation("Entered mathOperation()");
 
     Node *mathOperation = new Node(E_MATHOP);
     mathOperation->addChild(this->relation());
@@ -876,7 +912,7 @@ Node *Parser::mathOperation() {
 
 // helper for left recursion elimination
 Node *Parser::mathOperationPrime() {
-    if (this->debug) std::cout << "Entered mathOperationPrime()\n";
+    if (this->debug) this->printLocation("Entered mathOperationPrime()");
 
     Word nextWord = this->peek();
 
@@ -900,7 +936,7 @@ Node *Parser::mathOperationPrime() {
 // relation, ["<" or ">=" or "<=" or ">" or "==" or "!="], term OR
 // just term
 Node *Parser::relation() {
-    if (this->debug) std::cout << "Entered relation()\n";
+    if (this->debug) this->printLocation("Entered relation()");
 
     Node *relation = new Node(E_REL);
     relation->addChild(this->term());
@@ -914,7 +950,7 @@ Node *Parser::relation() {
 
 // helper for left recursion elimination
 Node *Parser::relationPrime() {
-    if (this->debug) std::cout << "Entered relationPrime()\n";
+    if (this->debug) this->printLocation("Entered relationPrime()");
 
     Word nextWord = this->peek();
 
@@ -935,7 +971,7 @@ Node *Parser::relationPrime() {
 // term, ["*" or "/"], factor OR
 // just factor
 Node *Parser::term() {
-    if (this->debug) std::cout << "Entered term()\n";
+    if (this->debug) this->printLocation("Entered term()");
 
     Node *term = new Node(E_TERM);
     term->addChild(this->factor());
@@ -949,7 +985,7 @@ Node *Parser::term() {
 
 // helper for left recursion elimination
 Node *Parser::termPrime() {
-    if (this->debug) std::cout << "Entered termPrime()\n";
+    if (this->debug) this->printLocation("Entered termPrime()");
 
     Word nextWord = this->peek();
 
@@ -978,7 +1014,7 @@ Node *Parser::termPrime() {
 // true terminal OR
 // false terminal
 Node *Parser::factor() {
-    if (this->debug) std::cout << "Entered factor()\n";
+    if (this->debug) this->printLocation("Entered factor()");
 
     Word nextWord = this->peek();
 
@@ -1004,7 +1040,7 @@ Node *Parser::factor() {
 
             // this condition filters out numbers that hit the T_SUB case
             if (this->peek().tokenType == T_IDENTIFIER) { 
-                Word nextWord = this->wordList.front();
+                Word nextWord = this->peek();
                 if (nextWord.isProcIdentifier) {
                     factor->addChild(this->procCall());
                 }
@@ -1061,7 +1097,7 @@ Node *Parser::factor() {
 
 // identifier, {"lbracket", expression, "rbracket"} <- optional
 Node *Parser::name() {
-    if (this->debug) std::cout << "Entered name()\n";
+    if (this->debug) this->printLocation("Entered name()");
 
     Node *name = new Node(E_NAME);
 
@@ -1094,7 +1130,7 @@ Node *Parser::name() {
 // expression, ",", argument list OR
 // expression
 Node *Parser::argList() {
-    if (this->debug) std::cout << "Entered argList()\n";
+    if (this->debug) this->printLocation("Entered argList()");
 
     Node *argList = new Node(E_ARGS);
 

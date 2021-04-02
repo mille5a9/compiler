@@ -101,11 +101,12 @@ class Parser {
     bool debug;
     
     // analyzing token stream;
-    Word peek() { return this->wordList.front(); }
+    Word peek();
     Word yoink();
     bool match(int term);
 
     // assessing grammar
+    void printLocation(std::string locationDesc);
     void parsingError(std::string expected);
     void parsingError();
     void identifierNotFoundError();
