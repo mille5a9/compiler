@@ -14,6 +14,7 @@ compile: compile.o parser.o scanner.o symboltable.o word.o
 
 # **************************************************** 
 compile.o: compile.cpp
+	@ mkdir -p $(BUILDDIR)
 	$(CC) $(CFLAGS) -c compile.cpp -o $(BUILDDIR)/compile.o
 
 # **************************************************** 
