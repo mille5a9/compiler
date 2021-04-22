@@ -99,11 +99,6 @@ void SymbolTable::setArgTypes(std::list<int> argTypes, std::string tokenString, 
     this->tables[scope][tokenString].argTypes = argTypes;
 }
 
-// retrieve associated attribute
-// char* SymbolTable::getAttribute() {
-    
-// }
-
 // instantiate global scope, and insert reserved words
 SymbolTable::SymbolTable() {
     symbol_map table = symbol_map();
