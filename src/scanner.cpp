@@ -379,8 +379,7 @@ void Scanner::writeWordList() {
     wordsOut.open("../build/wordlist.txt", std::ofstream::out | std::ofstream::trunc);
     while (copyWordList.empty() == false) {
         Word frontWord = copyWordList.front();
-        wordsOut << frontWord.tokenType << "," << frontWord.tokenString << ": "
-            << frontWord.dataType << "\n";
+        wordsOut << frontWord.tokenType << "," << frontWord.tokenString << "\n";
         copyWordList.pop_front();
     }
     wordsOut.close();
